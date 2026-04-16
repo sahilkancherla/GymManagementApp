@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -126,7 +126,7 @@ export default function EditProgramPage() {
       </div>
 
       {editingProgram ? (
-        <section className="rounded-xl border border-[var(--color-accent-rule)] bg-white shadow-[var(--shadow-soft)] p-6 mb-6">
+        <section className="rounded-xl border border-[var(--color-accent-rule)] bg-[var(--color-bg-card)] shadow-[var(--shadow-soft)] p-6 mb-6">
           <div className="flex items-center gap-2 mb-5">
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--color-accent-rule)]" />
             <h2 className="font-display text-base font-semibold tracking-tight">
@@ -139,7 +139,7 @@ export default function EditProgramPage() {
                 Program name
               </label>
               <input
-                className="h-10 rounded-md border border-[var(--color-rule-strong)] bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
+                className="h-10 rounded-md border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
                 value={programForm.name}
                 onChange={(e) => setProgramForm({ ...programForm, name: e.target.value })}
               />
@@ -149,7 +149,7 @@ export default function EditProgramPage() {
                 Description
               </label>
               <textarea
-                className="rounded-md border border-[var(--color-rule-strong)] bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
+                className="rounded-md border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
                 value={programForm.description}
                 onChange={(e) =>
                   setProgramForm({ ...programForm, description: e.target.value })
@@ -168,7 +168,7 @@ export default function EditProgramPage() {
                   onChange={(e) =>
                     setProgramForm({ ...programForm, start_date: e.target.value })
                   }
-                  className="h-10 rounded-md border border-[var(--color-rule-strong)] bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
+                  className="h-10 rounded-md border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
@@ -181,7 +181,7 @@ export default function EditProgramPage() {
                   onChange={(e) =>
                     setProgramForm({ ...programForm, end_date: e.target.value })
                   }
-                  className="h-10 rounded-md border border-[var(--color-rule-strong)] bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
+                  className="h-10 rounded-md border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
                 />
               </div>
             </div>
@@ -205,11 +205,8 @@ export default function EditProgramPage() {
       ) : (
         <section className="flex items-start justify-between gap-4 mb-6">
           <div className="min-w-0">
-            <div className="text-[10px] tracking-[0.14em] uppercase text-[var(--color-ink-muted)] font-medium mb-1">
-              Program
-            </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="font-display text-3xl font-semibold tracking-tight leading-tight">
+              <h1 className="font-display text-2xl font-semibold tracking-tight leading-tight">
                 {program.name}
               </h1>
               <button
@@ -241,7 +238,7 @@ export default function EditProgramPage() {
             className={`inline-flex items-center gap-2 h-9 px-3.5 rounded-full text-[12.5px] font-medium border transition-colors shrink-0 ${
               gymView
                 ? "bg-[var(--color-ink)] text-white border-[var(--color-ink)] hover:bg-[var(--color-ink-soft)]"
-                : "bg-white text-[var(--color-ink-soft)] border-[var(--color-rule)] hover:text-[var(--color-ink)] hover:border-[var(--color-ink)]"
+                : "bg-[var(--color-bg-card)] text-[var(--color-ink-soft)] border-[var(--color-rule)] hover:text-[var(--color-ink)] hover:border-[var(--color-ink)]"
             }`}
             title="Stepped view for recording results on the gym floor"
           >
@@ -306,7 +303,7 @@ export default function EditProgramPage() {
             <ClassesSection gymId={gymId as string} programId={programId as string} />
           )}
           {activeTab === "workouts" && (
-            <WorkoutsSection programId={programId as string} />
+            <WorkoutsSection programId={programId as string} gymId={gymId as string} />
           )}
           {activeTab === "members" && (
             <MembersSection
@@ -419,7 +416,7 @@ function MembersSection({
               onClick={() => setFilter(f)}
               className={`h-7 px-3 rounded text-xs font-medium capitalize transition-colors flex items-center gap-1.5 ${
                 filter === f
-                  ? "bg-white text-[var(--color-ink)] shadow-sm"
+                  ? "bg-[var(--color-bg-card)] text-[var(--color-ink)] shadow-sm"
                   : "text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]"
               }`}
             >
@@ -428,7 +425,7 @@ function MembersSection({
                 className={`tabular-nums text-[10px] px-1.5 rounded-full ${
                   filter === f
                     ? "bg-[var(--color-bg-soft)] text-[var(--color-ink-soft)]"
-                    : "bg-white text-[var(--color-ink-muted)]"
+                    : "bg-[var(--color-bg-card)] text-[var(--color-ink-muted)]"
                 }`}
               >
                 {counts[f]}
@@ -440,7 +437,7 @@ function MembersSection({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search name or email"
-          className="h-9 w-64 max-w-full rounded-md border border-[var(--color-rule)] bg-white px-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
+          className="h-9 w-64 max-w-full rounded-md border border-[var(--color-rule)] bg-[var(--color-bg-card)] px-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
         />
       </div>
 
@@ -669,7 +666,7 @@ function GymViewSection({
         </nav>
 
         <div
-          className="flex items-center gap-1 rounded-md border border-[var(--color-rule-strong)] bg-white px-1 py-0.5"
+          className="flex items-center gap-1 rounded-md border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-1 py-0.5"
           title="Zoom for TV display"
         >
           <button
@@ -837,7 +834,7 @@ function GymViewWeekStrip({
   })}`;
 
   return (
-    <div className="rounded-xl border border-[var(--color-rule)] bg-white p-3">
+    <div className="rounded-xl border border-[var(--color-rule)] bg-[var(--color-bg-card)] p-3">
       <div className="flex items-center justify-between mb-3">
         <button
           type="button"
@@ -881,7 +878,7 @@ function GymViewWeekStrip({
                 isSelected
                   ? "border-[var(--color-ink)] bg-[var(--color-ink)] text-white"
                   : "border-[var(--color-rule)] hover:border-[var(--color-ink)] hover:bg-[var(--color-bg-soft)] text-[var(--color-ink)]"
-              } ${isToday && !isSelected ? "ring-2 ring-blue-400" : ""}`}
+              } ${isToday && !isSelected ? "ring-2 ring-[var(--color-accent)]" : ""}`}
             >
               <div
                 className={`text-[11px] font-semibold uppercase tracking-wide ${
@@ -931,7 +928,7 @@ function GymViewDayList({
   });
 
   return (
-    <div className="rounded-xl border border-[var(--color-rule)] bg-white p-4 h-full">
+    <div className="rounded-xl border border-[var(--color-rule)] bg-[var(--color-bg-card)] p-4 h-full">
       <div className="mb-3">
         <h3 className="text-base font-semibold">{label}</h3>
         <p className="text-xs text-[var(--color-ink-muted)] mt-0.5">
@@ -972,7 +969,7 @@ function GymViewDayList({
                       <span
                         title="Completed"
                         className={`inline-flex items-center justify-center h-4 w-4 rounded-full text-[10px] font-bold shrink-0 ${
-                          isSelected ? "bg-white/20 text-white" : "bg-green-100 text-green-700"
+                          isSelected ? "bg-white/20 text-white" : "bg-[var(--color-accent-soft)] text-[var(--color-accent-ink)]"
                         }`}
                       >
                         ✓
@@ -1089,7 +1086,7 @@ function GymViewClass({
   ];
 
   return (
-    <div className="rounded-xl border border-[var(--color-rule)] bg-white p-4">
+    <div className="rounded-xl border border-[var(--color-rule)] bg-[var(--color-bg-card)] p-4">
       <div className="mb-4">
         <h3 className="text-lg font-semibold">{cls.name}</h3>
         <p className="text-xs text-[var(--color-ink-muted)] mt-0.5">
@@ -1147,7 +1144,7 @@ function GymViewClass({
                         className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${
                           w.format === "time"
                             ? "bg-[var(--color-accent-soft)] text-[var(--color-accent-ink)]"
-                            : "bg-green-100 text-green-700"
+                            : "bg-[var(--color-accent-soft)] text-[var(--color-accent-ink)]"
                         }`}
                       >
                         {w.format}
@@ -1210,7 +1207,7 @@ function GymViewClass({
                       <div className="text-sm font-medium truncate">{name}</div>
                       <div className="text-xs text-[var(--color-ink-muted)]">
                         {s.checked_in ? (
-                          <span className="text-green-700">Checked in</span>
+                          <span className="text-[var(--color-accent-ink)]">Checked in</span>
                         ) : (
                           "Not checked in"
                         )}
@@ -1286,7 +1283,7 @@ function GymViewUserResults({
   }, [programId, date, cls.id, userId]);
 
   return (
-    <div className="rounded-xl border border-[var(--color-rule)] bg-white p-4">
+    <div className="rounded-xl border border-[var(--color-rule)] bg-[var(--color-bg-card)] p-4">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="text-lg font-semibold">{name}</h3>
@@ -1362,6 +1359,9 @@ function GymViewResultEntry({
   const [reps, setReps] = useState(
     stat?.amrap_reps != null ? String(stat.amrap_reps) : "",
   );
+  const [rxScaled, setRxScaled] = useState<"rx" | "scaled" | null>(
+    stat?.rx_scaled ?? null,
+  );
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -1371,7 +1371,7 @@ function GymViewResultEntry({
     setErr(null);
     setSaved(false);
     try {
-      const body: Record<string, any> = { user_id: userId };
+      const body: Record<string, any> = { user_id: userId, rx_scaled: rxScaled };
       if (format === "time") {
         const m = parseInt(min || "0", 10) || 0;
         const s = parseInt(sec || "0", 10) || 0;
@@ -1403,6 +1403,7 @@ function GymViewResultEntry({
       setSec("");
       setRounds("");
       setReps("");
+      setRxScaled(null);
       return;
     }
     if (!confirm("Clear this result?")) return;
@@ -1414,6 +1415,7 @@ function GymViewResultEntry({
       setSec("");
       setRounds("");
       setReps("");
+      setRxScaled(null);
     } catch (e: any) {
       setErr(e?.message || "Failed to clear");
     } finally {
@@ -1428,7 +1430,7 @@ function GymViewResultEntry({
           className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${
             format === "time"
               ? "bg-[var(--color-accent-soft)] text-[var(--color-accent-ink)]"
-              : "bg-green-100 text-green-700"
+              : "bg-[var(--color-accent-soft)] text-[var(--color-accent-ink)]"
           }`}
         >
           {format}
@@ -1451,7 +1453,7 @@ function GymViewResultEntry({
               min={0}
               value={min}
               onChange={(e) => setMin(e.target.value)}
-              className="w-24 h-11 rounded border border-[var(--color-rule-strong)] bg-white px-3 text-lg text-right"
+              className="w-24 h-11 rounded border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 text-lg text-right"
             />
           </div>
           <div className="h-11 flex items-center text-lg text-[var(--color-ink-faint)]">:</div>
@@ -1464,7 +1466,7 @@ function GymViewResultEntry({
               max={59}
               value={sec}
               onChange={(e) => setSec(e.target.value)}
-              className="w-24 h-11 rounded border border-[var(--color-rule-strong)] bg-white px-3 text-lg text-right"
+              className="w-24 h-11 rounded border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 text-lg text-right"
             />
           </div>
         </div>
@@ -1478,7 +1480,7 @@ function GymViewResultEntry({
               min={0}
               value={rounds}
               onChange={(e) => setRounds(e.target.value)}
-              className="w-24 h-11 rounded border border-[var(--color-rule-strong)] bg-white px-3 text-lg text-right"
+              className="w-24 h-11 rounded border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 text-lg text-right"
             />
           </div>
           <div className="h-11 flex items-center text-lg text-[var(--color-ink-faint)]">+</div>
@@ -1490,11 +1492,28 @@ function GymViewResultEntry({
               min={0}
               value={reps}
               onChange={(e) => setReps(e.target.value)}
-              className="w-24 h-11 rounded border border-[var(--color-rule-strong)] bg-white px-3 text-lg text-right"
+              className="w-24 h-11 rounded border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 text-lg text-right"
             />
           </div>
         </div>
       )}
+
+      <div className="flex gap-1.5 mt-3">
+        {(["rx", "scaled"] as const).map((opt) => (
+          <button
+            key={opt}
+            type="button"
+            onClick={() => setRxScaled(rxScaled === opt ? null : opt)}
+            className={`h-8 px-3 rounded-full text-[12px] font-medium border transition-colors ${
+              rxScaled === opt
+                ? "bg-[var(--color-accent-soft)] text-[var(--color-accent-ink)] border-[var(--color-accent-rule)]"
+                : "bg-[var(--color-bg-card)] text-[var(--color-ink-soft)] border-[var(--color-rule)] hover:text-[var(--color-ink)]"
+            }`}
+          >
+            {opt === "rx" ? "Rx" : "Scaled"}
+          </button>
+        ))}
+      </div>
 
       <div className="flex items-center gap-2 mt-3">
         <button
@@ -1515,7 +1534,7 @@ function GymViewResultEntry({
             Clear
           </button>
         )}
-        {saved && <span className="text-xs text-green-700 font-medium">Saved ✓</span>}
+        {saved && <span className="text-xs text-[var(--color-accent-ink)] font-medium">Saved ✓</span>}
         {err && <span className="text-xs text-red-600">{err}</span>}
       </div>
     </div>
@@ -1571,6 +1590,7 @@ function ProgramCalendarSection({
         <ClassOccurrenceModal
           cls={selected.cls}
           date={selected.date}
+          gymId={gymId as string}
           currentUserId={currentUserId}
           canManage
           members={members}
@@ -1721,7 +1741,7 @@ function ClassesSection({ gymId, programId }: { gymId: string; programId: string
                 onClick={() => setFilter(f.key)}
                 className={`h-7 px-3 rounded text-xs font-medium transition-colors flex items-center gap-1.5 ${
                   filter === f.key
-                    ? "bg-white text-[var(--color-ink)] shadow-sm"
+                    ? "bg-[var(--color-bg-card)] text-[var(--color-ink)] shadow-sm"
                     : "text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]"
                 }`}
               >
@@ -1730,7 +1750,7 @@ function ClassesSection({ gymId, programId }: { gymId: string; programId: string
                   className={`tabular-nums text-[10px] px-1.5 rounded-full ${
                     filter === f.key
                       ? "bg-[var(--color-bg-soft)] text-[var(--color-ink-soft)]"
-                      : "bg-white text-[var(--color-ink-muted)]"
+                      : "bg-[var(--color-bg-card)] text-[var(--color-ink-muted)]"
                   }`}
                 >
                   {counts[f.key]}
@@ -1742,7 +1762,7 @@ function ClassesSection({ gymId, programId }: { gymId: string; programId: string
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search name or coach"
-            className="h-9 w-64 max-w-full rounded-md border border-[var(--color-rule)] bg-white px-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
+            className="h-9 w-64 max-w-full rounded-md border border-[var(--color-rule)] bg-[var(--color-bg-card)] px-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
           />
         </div>
       )}
@@ -1777,7 +1797,7 @@ function ClassesSection({ gymId, programId }: { gymId: string; programId: string
             return (
               <div
                 key={cls.id}
-                className="group flex items-start gap-4 p-4 bg-white border border-[var(--color-rule)] rounded-xl hover:border-[var(--color-ink)] hover:shadow-[var(--shadow-soft)] transition-all"
+                className="group flex items-start gap-4 p-4 bg-[var(--color-bg-card)] border border-[var(--color-rule)] rounded-xl hover:border-[var(--color-ink)] hover:shadow-[var(--shadow-soft)] transition-all"
               >
                 {/* Time tile */}
                 <div className="shrink-0 w-20 flex flex-col items-center justify-center rounded-lg border border-[var(--color-rule)] bg-[var(--color-bg-sunken)] py-2.5">
@@ -1912,7 +1932,7 @@ function ClassesSection({ gymId, programId }: { gymId: string; programId: string
 // WORKOUTS SECTION (Calendar)
 // =============================================
 
-function WorkoutsSection({ programId }: { programId: string }) {
+function WorkoutsSection({ programId, gymId }: { programId: string; gymId: string }) {
   const [workouts, setWorkouts] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -2021,7 +2041,7 @@ function WorkoutsSection({ programId }: { programId: string }) {
       {/* Week toolbar */}
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         <div className="flex items-center gap-2">
-          <div className="inline-flex rounded-md border border-[var(--color-rule)] bg-white overflow-hidden">
+          <div className="inline-flex rounded-md border border-[var(--color-rule)] bg-[var(--color-bg-card)] overflow-hidden">
             <button
               onClick={() => navigateWeek(-1)}
               className="h-9 w-9 flex items-center justify-center text-[var(--color-ink-soft)] hover:text-[var(--color-ink)] hover:bg-[var(--color-bg-soft)] transition-colors"
@@ -2084,7 +2104,7 @@ function WorkoutsSection({ programId }: { programId: string }) {
             return (
               <div
                 key={date}
-                className={`rounded-xl overflow-hidden border bg-white transition-all ${
+                className={`rounded-xl overflow-hidden border bg-[var(--color-bg-card)] transition-all ${
                   isToday
                     ? "border-[var(--color-accent-rule)]"
                     : isExpanded
@@ -2155,7 +2175,7 @@ function WorkoutsSection({ programId }: { programId: string }) {
 
                   <div className="flex items-center gap-3 shrink-0">
                     {dayWorkouts.length > 0 && (
-                      <span className="inline-flex items-center h-6 px-2 rounded-full border border-[var(--color-rule)] bg-white text-[11px] font-semibold tabular-nums text-[var(--color-ink-soft)]">
+                      <span className="inline-flex items-center h-6 px-2 rounded-full border border-[var(--color-rule)] bg-[var(--color-bg-card)] text-[11px] font-semibold tabular-nums text-[var(--color-ink-soft)]">
                         {dayWorkouts.length}
                       </span>
                     )}
@@ -2179,6 +2199,8 @@ function WorkoutsSection({ programId }: { programId: string }) {
                             workout={workout}
                             order={i + 1}
                             classes={classes}
+                            date={date}
+                            gymId={gymId as string}
                             onDelete={() => handleDeleteWorkout(workout.id)}
                             onUpdated={loadWorkouts}
                           />
@@ -2205,91 +2227,66 @@ function WorkoutsSection({ programId }: { programId: string }) {
 
 function ClassScopePicker({
   classes,
-  applyToAll,
-  setApplyToAll,
   selectedClassIds,
   toggleClass,
 }: {
   classes: any[];
-  applyToAll: boolean;
-  setApplyToAll: (v: boolean) => void;
   selectedClassIds: string[];
   toggleClass: (classId: string) => void;
 }) {
+  if (classes.length === 0) {
+    return (
+      <div className="flex flex-col gap-2">
+        <label className="text-[11px] tracking-[0.12em] uppercase text-[var(--color-ink-muted)] font-medium">
+          Applies to
+        </label>
+        <p className="text-[11.5px] text-[var(--color-ink-muted)]">
+          No classes available for this day.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-2">
       <label className="text-[11px] tracking-[0.12em] uppercase text-[var(--color-ink-muted)] font-medium">
         Applies to
       </label>
-      <div className="flex gap-1.5 p-1 rounded-md border border-[var(--color-rule)] bg-[var(--color-bg-soft)] w-fit">
-        <button
-          type="button"
-          onClick={() => setApplyToAll(true)}
-          className={`h-7 px-3 rounded text-xs font-medium transition-colors ${
-            applyToAll
-              ? "bg-white text-[var(--color-ink)] shadow-sm"
-              : "text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]"
-          }`}
-        >
-          All classes
-        </button>
-        <button
-          type="button"
-          onClick={() => setApplyToAll(false)}
-          className={`h-7 px-3 rounded text-xs font-medium transition-colors ${
-            !applyToAll
-              ? "bg-white text-[var(--color-ink)] shadow-sm"
-              : "text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]"
-          }`}
-        >
-          Specific classes
-        </button>
+      <div className="flex flex-wrap gap-1.5">
+        {classes.map((cls) => {
+          const checked = selectedClassIds.includes(cls.id);
+          return (
+            <button
+              key={cls.id}
+              type="button"
+              onClick={() => toggleClass(cls.id)}
+              className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full text-xs font-medium border transition-colors ${
+                checked
+                  ? "border-[var(--color-ink)] bg-[var(--color-ink)] text-white"
+                  : "border-[var(--color-rule)] text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
+              }`}
+            >
+              {cls.name}
+              {cls.start_time && (
+                <span
+                  className={`tabular-nums text-[10.5px] ${
+                    checked ? "text-white/70" : "text-[var(--color-ink-muted)]"
+                  }`}
+                >
+                  {formatTimeLabel(
+                    cls.start_time,
+                    cls.one_off_date || undefined,
+                  )}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
-      {!applyToAll && (
-        <>
-          {classes.length === 0 ? (
-            <p className="text-[11.5px] text-[var(--color-ink-muted)]">
-              No classes in this program yet. Add classes first, or apply to all.
-            </p>
-          ) : (
-            <div className="flex flex-wrap gap-1.5">
-              {classes.map((cls) => {
-                const checked = selectedClassIds.includes(cls.id);
-                return (
-                  <button
-                    key={cls.id}
-                    type="button"
-                    onClick={() => toggleClass(cls.id)}
-                    className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full text-xs font-medium border transition-colors ${
-                      checked
-                        ? "border-[var(--color-ink)] bg-[var(--color-ink)] text-white"
-                        : "border-[var(--color-rule)] text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
-                    }`}
-                  >
-                    {cls.name}
-                    {cls.start_time && (
-                      <span
-                        className={`tabular-nums text-[10.5px] ${
-                          checked ? "text-white/70" : "text-[var(--color-ink-muted)]"
-                        }`}
-                      >
-                        {formatTimeLabel(
-                          cls.start_time,
-                          cls.one_off_date || undefined,
-                        )}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-          {classes.length > 0 && selectedClassIds.length === 0 && (
-            <span className="text-[11.5px] text-[var(--color-ink-muted)]">
-              Select at least one class, or switch back to All.
-            </span>
-          )}
-        </>
+      {selectedClassIds.length === 0 && (
+        <span className="text-[11.5px] text-[var(--color-ink-muted)]">
+          Select at least one class.
+        </span>
       )}
     </div>
   );
@@ -2299,15 +2296,20 @@ function WorkoutItem({
   workout,
   order,
   classes,
+  date,
+  gymId,
   onDelete,
   onUpdated,
 }: {
   workout: any;
   order: number;
   classes: any[];
+  date: string;
+  gymId: string;
   onDelete: () => void;
   onUpdated: () => void;
 }) {
+  const dayClasses = useMemo(() => classesForDateIso(date, classes), [date, classes]);
   const initialClassIds: string[] = workout.class_ids || [];
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
@@ -2316,7 +2318,7 @@ function WorkoutItem({
     format: workout.format,
     sort_order: workout.sort_order || 0,
   });
-  const [applyToAll, setApplyToAll] = useState(initialClassIds.length === 0);
+  // applyToAll removed — workouts must target at least one class
   const [selectedClassIds, setSelectedClassIds] =
     useState<string[]>(initialClassIds);
   const [saving, setSaving] = useState(false);
@@ -2339,7 +2341,7 @@ function WorkoutItem({
           description: form.description || null,
           format: form.format,
           sort_order: form.sort_order,
-          class_ids: applyToAll ? [] : selectedClassIds,
+          class_ids: selectedClassIds,
         }),
       });
       setEditing(false);
@@ -2363,7 +2365,7 @@ function WorkoutItem({
 
   if (editing) {
     return (
-      <div className="border border-[var(--color-accent-rule)] bg-white rounded-xl p-4 shadow-[var(--shadow-soft)]">
+      <div className="border border-[var(--color-accent-rule)] bg-[var(--color-bg-card)] rounded-xl p-4 shadow-[var(--shadow-soft)]">
         <div className="flex items-center gap-2 mb-4">
           <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--color-accent-rule)]" />
           <h4 className="font-display text-sm font-semibold tracking-tight">
@@ -2377,7 +2379,7 @@ function WorkoutItem({
                 Title
               </label>
               <input
-                className="h-10 rounded-md border border-[var(--color-rule-strong)] bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
+                className="h-10 rounded-md border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
               />
@@ -2394,7 +2396,7 @@ function WorkoutItem({
                     onClick={() => setForm({ ...form, format: f })}
                     className={`flex-1 h-7 px-2 rounded text-[11px] font-medium uppercase tracking-wide transition-colors ${
                       form.format === f
-                        ? "bg-white text-[var(--color-ink)] shadow-sm"
+                        ? "bg-[var(--color-bg-card)] text-[var(--color-ink)] shadow-sm"
                         : "text-[var(--color-ink-soft)]"
                     }`}
                   >
@@ -2409,16 +2411,14 @@ function WorkoutItem({
               Description
             </label>
             <textarea
-              className="rounded-md border border-[var(--color-rule-strong)] bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
+              className="rounded-md border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               rows={2}
             />
           </div>
           <ClassScopePicker
-            classes={classes}
-            applyToAll={applyToAll}
-            setApplyToAll={setApplyToAll}
+            classes={dayClasses}
             selectedClassIds={selectedClassIds}
             toggleClass={toggleClass}
           />
@@ -2431,7 +2431,6 @@ function WorkoutItem({
                   format: workout.format,
                   sort_order: workout.sort_order || 0,
                 });
-                setApplyToAll(initialClassIds.length === 0);
                 setSelectedClassIds(initialClassIds);
                 setEditing(false);
               }}
@@ -2441,7 +2440,7 @@ function WorkoutItem({
             </button>
             <button
               onClick={handleUpdate}
-              disabled={saving || !form.title.trim()}
+              disabled={saving || !form.title.trim() || dayClasses.length === 0 || selectedClassIds.length === 0}
               className="h-9 px-4 rounded-md bg-[var(--color-accent)] text-white text-sm font-medium hover:bg-[var(--color-accent-rich)] disabled:opacity-60 transition-colors"
             >
               {saving ? "Saving…" : "Save changes"}
@@ -2453,7 +2452,7 @@ function WorkoutItem({
   }
 
   return (
-    <div className="group flex items-start gap-3 p-3.5 bg-white border border-[var(--color-rule)] rounded-lg hover:border-[var(--color-ink)] hover:shadow-[var(--shadow-soft)] transition-all">
+    <div className="group flex items-start gap-3 p-3.5 bg-[var(--color-bg-card)] border border-[var(--color-rule)] rounded-lg hover:border-[var(--color-ink)] hover:shadow-[var(--shadow-soft)] transition-all">
       <div className="shrink-0 flex flex-col items-center gap-2">
         <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[var(--color-bg-sunken)] text-[10.5px] font-semibold tabular-nums text-[var(--color-ink-soft)] border border-[var(--color-rule)]">
           {order}
@@ -2474,9 +2473,17 @@ function WorkoutItem({
             {workout.description}
           </p>
         )}
-        <div className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-[var(--color-ink-muted)]">
-          <LayoutGrid size={10} strokeWidth={1.75} />
-          <span className="truncate">{appliesToLabel}</span>
+        <div className="mt-1.5 flex items-center gap-3">
+          <span className="inline-flex items-center gap-1 text-[11px] text-[var(--color-ink-muted)]">
+            <LayoutGrid size={10} strokeWidth={1.75} />
+            <span className="truncate">{appliesToLabel}</span>
+          </span>
+          <Link
+            href={`/gym/${gymId}/workouts/${workout.id}`}
+            className="text-[11px] font-medium text-[var(--color-accent-ink)] hover:underline no-underline"
+          >
+            View results →
+          </Link>
         </div>
       </div>
       <div className="shrink-0 flex gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
@@ -2519,9 +2526,9 @@ function AddWorkoutForm({
     format: "time",
     sort_order: nextOrder,
   });
-  const [applyToAll, setApplyToAll] = useState(true);
   const [selectedClassIds, setSelectedClassIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const dayClasses = useMemo(() => classesForDateIso(date, classes), [date, classes]);
 
   function toggleClass(classId: string) {
     setSelectedClassIds((prev) =>
@@ -2531,12 +2538,11 @@ function AddWorkoutForm({
 
   function resetForm() {
     setForm({ title: "", description: "", format: "time", sort_order: nextOrder + 1 });
-    setApplyToAll(true);
     setSelectedClassIds([]);
   }
 
   async function handleCreate() {
-    if (!form.title.trim()) return;
+    if (!form.title.trim() || selectedClassIds.length === 0) return;
     setSaving(true);
     try {
       await apiFetch(`/programs/${programId}/workouts`, {
@@ -2545,7 +2551,7 @@ function AddWorkoutForm({
           ...form,
           description: form.description || null,
           date,
-          class_ids: applyToAll ? [] : selectedClassIds,
+          class_ids: selectedClassIds,
         }),
       });
       resetForm();
@@ -2562,7 +2568,7 @@ function AddWorkoutForm({
     return (
       <button
         onClick={() => setExpanded(true)}
-        className="inline-flex items-center justify-center gap-1.5 h-10 rounded-lg border border-dashed border-[var(--color-rule-strong)] bg-white text-[12.5px] font-medium text-[var(--color-ink-soft)] hover:text-[var(--color-ink)] hover:border-[var(--color-ink)] hover:bg-[var(--color-bg-soft)] transition-colors"
+        className="inline-flex items-center justify-center gap-1.5 h-10 rounded-lg border border-dashed border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] text-[12.5px] font-medium text-[var(--color-ink-soft)] hover:text-[var(--color-ink)] hover:border-[var(--color-ink)] hover:bg-[var(--color-bg-soft)] transition-colors"
       >
         <Plus size={13} strokeWidth={1.75} />
         Add workout
@@ -2571,7 +2577,7 @@ function AddWorkoutForm({
   }
 
   return (
-    <div className="bg-white border border-[var(--color-rule)] rounded-xl p-4 shadow-[var(--shadow-soft)]">
+    <div className="bg-[var(--color-bg-card)] border border-[var(--color-rule)] rounded-xl p-4 shadow-[var(--shadow-soft)]">
       <div className="flex items-center gap-2 mb-4">
         <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--color-accent-rule)]" />
         <h4 className="font-display text-sm font-semibold tracking-tight">
@@ -2586,7 +2592,7 @@ function AddWorkoutForm({
             </label>
             <input
               autoFocus
-              className="h-10 rounded-md border border-[var(--color-rule-strong)] bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
+              className="h-10 rounded-md border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
               placeholder="e.g. Back Squat 5×5"
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
@@ -2604,7 +2610,7 @@ function AddWorkoutForm({
                   onClick={() => setForm({ ...form, format: f })}
                   className={`flex-1 h-7 px-2 rounded text-[11px] font-medium uppercase tracking-wide transition-colors ${
                     form.format === f
-                      ? "bg-white text-[var(--color-ink)] shadow-sm"
+                      ? "bg-[var(--color-bg-card)] text-[var(--color-ink)] shadow-sm"
                       : "text-[var(--color-ink-soft)]"
                   }`}
                 >
@@ -2619,7 +2625,7 @@ function AddWorkoutForm({
             Description <span className="normal-case tracking-normal text-[var(--color-ink-muted)]">(optional)</span>
           </label>
           <textarea
-            className="rounded-md border border-[var(--color-rule-strong)] bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
+            className="rounded-md border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
             placeholder="Workout details, reps, weights…"
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
@@ -2627,9 +2633,7 @@ function AddWorkoutForm({
           />
         </div>
         <ClassScopePicker
-          classes={classes}
-          applyToAll={applyToAll}
-          setApplyToAll={setApplyToAll}
+          classes={dayClasses}
           selectedClassIds={selectedClassIds}
           toggleClass={toggleClass}
         />
@@ -2645,7 +2649,7 @@ function AddWorkoutForm({
           </button>
           <button
             onClick={handleCreate}
-            disabled={saving || !form.title.trim()}
+            disabled={saving || !form.title.trim() || dayClasses.length === 0}
             className="h-9 px-4 rounded-md bg-[var(--color-accent)] text-white text-sm font-medium hover:bg-[var(--color-accent-rich)] disabled:opacity-60 transition-colors"
           >
             {saving ? "Adding…" : "Add workout"}
@@ -2786,7 +2790,7 @@ function ClassModal({ gymId, programId, coaches, initial, onClose, onSaved }: Cl
       aria-labelledby="class-modal-title"
     >
       <div
-        className="w-full max-w-lg bg-white rounded-2xl shadow-[var(--shadow-lifted)] border border-[var(--color-rule)] max-h-[90vh] overflow-y-auto"
+        className="w-full max-w-lg bg-[var(--color-bg-card)] rounded-2xl shadow-[var(--shadow-lifted)] border border-[var(--color-rule)] max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -2830,7 +2834,7 @@ function ClassModal({ gymId, programId, coaches, initial, onClose, onSaved }: Cl
                   onClick={() => setActiveTab(tab)}
                   className={`h-8 px-3.5 rounded text-[13px] font-medium inline-flex items-center gap-1.5 transition-colors ${
                     active
-                      ? "bg-white text-[var(--color-ink)] shadow-[var(--shadow-soft)]"
+                      ? "bg-[var(--color-bg-card)] text-[var(--color-ink)] shadow-[var(--shadow-soft)]"
                       : "text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]"
                   }`}
                 >
@@ -2851,7 +2855,7 @@ function ClassModal({ gymId, programId, coaches, initial, onClose, onSaved }: Cl
             <input
               id="cm-name"
               autoFocus
-              className="h-10 rounded-md border border-[var(--color-rule-strong)] bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
+              className="h-10 rounded-md border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
               placeholder="e.g. Morning CrossFit"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -2865,7 +2869,7 @@ function ClassModal({ gymId, programId, coaches, initial, onClose, onSaved }: Cl
             </label>
             <textarea
               id="cm-desc"
-              className="rounded-md border border-[var(--color-rule-strong)] bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
+              className="rounded-md border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
@@ -2888,7 +2892,7 @@ function ClassModal({ gymId, programId, coaches, initial, onClose, onSaved }: Cl
                       className={`h-9 w-9 rounded-md text-[13px] font-medium border transition-colors ${
                         selected
                           ? "border-[var(--color-ink)] bg-[var(--color-ink)] text-white"
-                          : "border-[var(--color-rule-strong)] bg-white text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
+                          : "border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
                       }`}
                     >
                       {label}
@@ -2907,7 +2911,7 @@ function ClassModal({ gymId, programId, coaches, initial, onClose, onSaved }: Cl
                 type="date"
                 value={oneOffDate}
                 onChange={(e) => setOneOffDate(e.target.value)}
-                className="h-10 rounded-md border border-[var(--color-rule-strong)] bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
+                className="h-10 rounded-md border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
               />
             </div>
           )}
@@ -2926,7 +2930,7 @@ function ClassModal({ gymId, programId, coaches, initial, onClose, onSaved }: Cl
                   type="time"
                   value={startTime}
                   onChange={(e) => setStartTime(e.target.value)}
-                  className="h-10 flex-1 rounded-md border border-[var(--color-rule-strong)] bg-white px-3 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
+                  className="h-10 flex-1 rounded-md border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
                 />
                 {startTime && (
                   <button
@@ -2950,7 +2954,7 @@ function ClassModal({ gymId, programId, coaches, initial, onClose, onSaved }: Cl
                   inputMode="numeric"
                   value={durationMinutes}
                   onChange={(e) => setDurationMinutes(e.target.value)}
-                  className="h-10 w-full rounded-md border border-[var(--color-rule-strong)] bg-white px-3 pr-9 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
+                  className="h-10 w-full rounded-md border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 pr-9 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--color-ink-muted)]">
                   min
@@ -2969,7 +2973,7 @@ function ClassModal({ gymId, programId, coaches, initial, onClose, onSaved }: Cl
                 id="cm-coach"
                 value={coachId}
                 onChange={(e) => setCoachId(e.target.value)}
-                className="h-10 rounded-md border border-[var(--color-rule-strong)] bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
+                className="h-10 rounded-md border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
               >
                 <option value="">No coach assigned</option>
                 {coaches.map((c) => (
@@ -2990,7 +2994,7 @@ function ClassModal({ gymId, programId, coaches, initial, onClose, onSaved }: Cl
                 placeholder="—"
                 value={capacity}
                 onChange={(e) => setCapacity(e.target.value)}
-                className="h-10 rounded-md border border-[var(--color-rule-strong)] bg-white px-3 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
+                className="h-10 rounded-md border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
               />
             </div>
           </div>
@@ -3025,15 +3029,15 @@ function ClassModal({ gymId, programId, coaches, initial, onClose, onSaved }: Cl
                       }}
                       className={`flex items-center gap-3 rounded px-2.5 py-2 text-left text-sm transition-colors ${
                         checked
-                          ? "bg-white border border-[var(--color-ink)] shadow-[var(--shadow-soft)]"
-                          : "border border-transparent hover:bg-white"
+                          ? "bg-[var(--color-bg-card)] border border-[var(--color-ink)] shadow-[var(--shadow-soft)]"
+                          : "border border-transparent hover:bg-[var(--color-bg-card)]"
                       }`}
                     >
                       <span
                         className={`h-4 w-4 rounded border flex items-center justify-center flex-shrink-0 ${
                           checked
                             ? "border-[var(--color-ink)] bg-[var(--color-ink)] text-white"
-                            : "border-[var(--color-rule-strong)] bg-white"
+                            : "border-[var(--color-rule-strong)] bg-[var(--color-bg-card)]"
                         }`}
                       >
                         {checked && <Check size={11} strokeWidth={3} />}

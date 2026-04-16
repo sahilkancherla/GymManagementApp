@@ -41,12 +41,12 @@ export default function JoinGymPage() {
     return `$${(cents / 100).toFixed(2)}`;
   }
 
-  if (loading) return <p className="text-gray-600">Loading...</p>;
+  if (loading) return <p className="text-[var(--color-ink-soft)]">Loading...</p>;
 
   return (
     <div className="max-w-2xl">
       <BackButton href={`/gym/${gymId}`} label="Gym" className="mb-3" />
-      <h1 className="text-2xl font-bold mb-5">Membership Plans</h1>
+      <h1 className="font-display text-2xl font-semibold tracking-tight leading-tight text-[var(--color-ink)] mb-5">Membership Plans</h1>
 
       {error && (
         <div className="bg-red-50 border border-red-200 p-3 rounded-md mb-4">
@@ -55,13 +55,13 @@ export default function JoinGymPage() {
       )}
 
       {plans.length === 0 ? (
-        <div className="border border-gray-200 rounded-xl p-6">
+        <div className="border border-[var(--color-rule)] rounded-xl p-6">
           <div className="flex flex-col items-center py-6">
-            <p className="text-gray-600 mb-4">No plans available yet.</p>
+            <p className="text-[var(--color-ink-soft)] mb-4">No plans available yet.</p>
             <button
               onClick={() => handleJoin()}
               disabled={joining}
-              className="h-10 px-4 rounded-md bg-primary text-white text-sm font-medium hover:bg-primary/90 disabled:opacity-70"
+              className="h-10 px-4 rounded-md bg-[var(--color-accent)] text-white text-sm font-medium hover:bg-[var(--color-accent-rich)] disabled:opacity-70"
             >
               {joining ? "Joining..." : "Join without a plan"}
             </button>
@@ -70,27 +70,27 @@ export default function JoinGymPage() {
       ) : (
         <div className="flex flex-col gap-4">
           {plans.map((plan) => (
-            <div key={plan.id} className="border border-gray-200 rounded-xl p-4">
+            <div key={plan.id} className="border border-[var(--color-rule)] rounded-xl p-4">
               <div className="flex items-center justify-between py-2">
                 <div className="flex-1">
                   <h3 className="text-base font-semibold">{plan.name}</h3>
                   {plan.description && (
-                    <p className="text-sm text-gray-600 mt-1">{plan.description}</p>
+                    <p className="text-sm text-[var(--color-ink-soft)] mt-1">{plan.description}</p>
                   )}
                   <div className="flex gap-2 mt-2 flex-wrap">
-                    <span className="px-2 py-1 rounded bg-gray-100 text-xs">{formatPrice(plan.price_cents)}</span>
+                    <span className="px-2 py-1 rounded bg-[var(--color-bg-soft)] text-xs">{formatPrice(plan.price_cents)}</span>
                     {plan.billing_period && (
-                      <span className="px-2 py-1 rounded border border-gray-200 text-xs">/ {plan.billing_period}</span>
+                      <span className="px-2 py-1 rounded border border-[var(--color-rule)] text-xs">/ {plan.billing_period}</span>
                     )}
                     {plan.class_count && (
-                      <span className="px-2 py-1 rounded border border-gray-200 text-xs">{plan.class_count} classes</span>
+                      <span className="px-2 py-1 rounded border border-[var(--color-rule)] text-xs">{plan.class_count} classes</span>
                     )}
                   </div>
                 </div>
                 <button
                   onClick={() => handleJoin(plan.id)}
                   disabled={joining}
-                  className="h-10 px-4 rounded-md bg-primary text-white text-sm font-medium hover:bg-primary/90 disabled:opacity-70"
+                  className="h-10 px-4 rounded-md bg-[var(--color-accent)] text-white text-sm font-medium hover:bg-[var(--color-accent-rich)] disabled:opacity-70"
                 >
                   {joining ? "Joining..." : "Select"}
                 </button>

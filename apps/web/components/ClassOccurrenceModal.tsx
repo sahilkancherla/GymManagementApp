@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { apiFetch } from "@/lib/api";
 import {
   formatUtcTime,
@@ -14,6 +15,7 @@ import {
 export function ClassOccurrenceModal({
   cls,
   date,
+  gymId,
   currentUserId,
   canManage,
   members,
@@ -21,6 +23,7 @@ export function ClassOccurrenceModal({
 }: {
   cls: any;
   date: string;
+  gymId: string;
   currentUserId: string | null;
   canManage: boolean;
   members: any[];
@@ -40,7 +43,6 @@ export function ClassOccurrenceModal({
     title: "",
     description: "",
     format: "time" as "time" | "amrap",
-    applyToAll: false,
   });
   const [savingWorkout, setSavingWorkout] = useState(false);
   const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null);
@@ -168,10 +170,10 @@ export function ClassOccurrenceModal({
           description: workoutForm.description.trim() || null,
           format: workoutForm.format,
           sort_order: workouts.length,
-          class_ids: workoutForm.applyToAll ? [] : [cls.id],
+          class_ids: [cls.id],
         }),
       });
-      setWorkoutForm({ title: "", description: "", format: "time", applyToAll: false });
+      setWorkoutForm({ title: "", description: "", format: "time" });
       setShowWorkoutForm(false);
       await loadWorkouts();
     } catch (err: any) {
@@ -357,10 +359,10 @@ export function ClassOccurrenceModal({
       aria-modal="true"
     >
       <div
-        className="w-full max-w-4xl bg-[var(--color-bg-card)] rounded-xl border border-[var(--color-rule)] shadow-[var(--shadow-lifted)] max-h-[92vh] overflow-y-auto"
+        className="w-full max-w-4xl bg-[var(--color-bg-card)] rounded-xl border border-[var(--color-rule)] shadow-[var(--shadow-lifted)] h-[85vh] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="sticky top-0 z-10 bg-[var(--color-bg-card)] border-b border-[var(--color-rule)]">
+        <div className="flex-shrink-0 bg-[var(--color-bg-card)] border-b border-[var(--color-rule)]">
           <div className="flex items-start justify-between gap-4 px-6 py-5">
             <div className="min-w-0 flex-1">
               <div className="text-[10.5px] font-medium tracking-[0.14em] uppercase text-[var(--color-ink-muted)] mb-1.5">
@@ -485,6 +487,7 @@ export function ClassOccurrenceModal({
           </div>
         </div>
 
+        <div className="flex-1 overflow-y-auto min-h-0">
         {loading ? (
           <div className="p-10 text-center text-[13px] text-[var(--color-ink-muted)]">
             Loading…
@@ -511,13 +514,13 @@ export function ClassOccurrenceModal({
                 <>
                   {/* Admin: sign up another member */}
                   {canManage && (
-                    <div className="rounded-lg border border-[var(--color-rule)] bg-white p-3">
+                    <div className="rounded-lg border border-[var(--color-rule)] bg-[var(--color-bg-card)] p-3">
                       <div className="flex items-center gap-2 mb-2">
-                        <div className="text-sm font-semibold text-[var(--color-ink)]">
+                        <div className="text-[13px] font-semibold text-[var(--color-ink)]">
                           Sign up a member
                         </div>
                         {atCapacity && (
-                          <span className="text-xs text-amber-700">
+                          <span className="text-[11px] text-[var(--color-ink-muted)]">
                             (class is full)
                           </span>
                         )}
@@ -545,7 +548,7 @@ export function ClassOccurrenceModal({
                               : "Search members by name..."
                           }
                           disabled={busy || atCapacity || availableMembers.length === 0}
-                          className="h-9 w-full rounded-md border border-[var(--color-rule-strong)] bg-white pl-9 pr-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:bg-[var(--color-bg-sunken)] disabled:text-[var(--color-ink-muted)]"
+                          className="h-9 w-full rounded-md border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] pl-9 pr-3 text-[13px] focus:border-[var(--color-ink)] focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/10 disabled:bg-[var(--color-bg-sunken)] disabled:text-[var(--color-ink-muted)]"
                         />
                       </div>
                       {q && matches.length > 0 && (
@@ -560,20 +563,20 @@ export function ClassOccurrenceModal({
                                 type="button"
                                 onClick={() => signUpMember(m.user_id)}
                                 disabled={busy || atCapacity}
-                                className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-[var(--color-bg-sunken)] disabled:opacity-60"
+                                className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left text-[13px] hover:bg-[var(--color-bg-sunken)] disabled:opacity-60"
                               >
                                 <span className="flex items-center gap-2 min-w-0">
                                   <Avatar profile={m.profile} size={28} />
                                   <span className="truncate">{name}</span>
                                 </span>
-                                <span className="text-xs text-primary font-medium">+ Add</span>
+                                <span className="text-[11px] text-[var(--color-accent-ink)] font-medium">+ Add</span>
                               </button>
                             );
                           })}
                         </div>
                       )}
                       {q && matches.length === 0 && (
-                        <p className="mt-2 text-xs text-[var(--color-ink-muted)]">
+                        <p className="mt-2 text-[12px] text-[var(--color-ink-muted)]">
                           No members match &ldquo;{memberSearch}&rdquo;.
                         </p>
                       )}
@@ -583,7 +586,7 @@ export function ClassOccurrenceModal({
                   {/* Roster */}
                   {signups.length === 0 ? (
                     <div className="rounded-lg border border-dashed border-[var(--color-rule-strong)] py-10 text-center">
-                      <p className="text-sm text-[var(--color-ink-muted)]">No one has signed up yet.</p>
+                      <p className="text-[13px] text-[var(--color-ink-muted)]">No one has signed up yet.</p>
                     </div>
                   ) : (
                     <div className="flex flex-col gap-4">
@@ -661,11 +664,11 @@ export function ClassOccurrenceModal({
             {tab === "workouts" && programId && (
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-sm font-semibold">Workouts</h4>
+                  <h4 className="text-[13px] font-semibold">Workouts</h4>
                   {canManage && !showWorkoutForm && (
                     <button
                       onClick={() => setShowWorkoutForm(true)}
-                      className="h-8 px-3 rounded-md bg-primary text-white text-xs font-medium hover:bg-primary/90"
+                      className="h-8 px-3 rounded-md bg-[var(--color-accent)] text-white text-[12px] font-medium hover:bg-[var(--color-accent-rich)]"
                     >
                       Add workout
                     </button>
@@ -673,9 +676,9 @@ export function ClassOccurrenceModal({
                 </div>
 
                 {workoutsLoading ? (
-                  <p className="text-sm text-[var(--color-ink-muted)]">Loading...</p>
+                  <p className="text-[13px] text-[var(--color-ink-muted)]">Loading...</p>
                 ) : workouts.length === 0 && !showWorkoutForm ? (
-                  <p className="text-sm text-[var(--color-ink-muted)]">No workouts for this class today.</p>
+                  <p className="text-[13px] text-[var(--color-ink-muted)]">No workouts for this class today.</p>
                 ) : (
                   <div className="flex flex-col divide-y divide-[var(--color-rule)]">
                     {workouts.map((w) => {
@@ -702,13 +705,13 @@ export function ClassOccurrenceModal({
                                 <span
                                   className={`px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase ${
                                     w.format === "time"
-                                      ? "bg-blue-100 text-blue-700"
-                                      : "bg-green-100 text-green-700"
+                                      ? "bg-[var(--color-bg-soft)] text-[var(--color-ink-soft)]"
+                                      : "bg-[var(--color-accent-soft)] text-[var(--color-accent-ink)]"
                                   }`}
                                 >
                                   {w.format}
                                 </span>
-                                <span className="text-sm font-medium truncate">{w.title}</span>
+                                <span className="text-[13px] font-medium truncate">{w.title}</span>
                                 {scopedToAll && (
                                   <span
                                     className="px-1.5 py-0.5 rounded bg-[var(--color-bg-soft)] text-[var(--color-ink-soft)] text-[10px] font-medium"
@@ -719,17 +722,23 @@ export function ClassOccurrenceModal({
                                 )}
                               </div>
                               {w.description && (
-                                <div className="text-xs text-[var(--color-ink-soft)] mt-0.5 whitespace-pre-wrap">
+                                <div className="text-[12px] text-[var(--color-ink-soft)] mt-0.5 whitespace-pre-wrap">
                                   {w.description}
                                 </div>
                               )}
+                              <Link
+                                href={`/gym/${gymId}/workouts/${w.id}`}
+                                className="inline-block mt-1 text-[11px] font-medium text-[var(--color-accent-ink)] hover:underline no-underline"
+                              >
+                                View results →
+                              </Link>
                             </div>
                             {canManage && (
                               <div className="flex items-center gap-1 flex-shrink-0">
                                 {scopedToAll && (
                                   <button
                                     onClick={() => handleOverrideForThisClass(w)}
-                                    className="h-7 px-2 rounded text-xs text-blue-700 hover:bg-blue-50"
+                                    className="h-7 px-2 rounded text-[11px] text-[var(--color-accent-ink)] hover:bg-[var(--color-accent-soft)]"
                                     title="Make this workout specific to this class"
                                   >
                                     Override
@@ -737,13 +746,13 @@ export function ClassOccurrenceModal({
                                 )}
                                 <button
                                   onClick={() => setEditingWorkoutId(w.id)}
-                                  className="h-7 px-2 rounded text-xs text-[var(--color-ink-soft)] hover:bg-[var(--color-bg-soft)]"
+                                  className="h-7 px-2 rounded text-[12px] text-[var(--color-ink-soft)] hover:bg-[var(--color-bg-soft)]"
                                 >
                                   Edit
                                 </button>
                                 <button
                                   onClick={() => handleDeleteWorkout(w.id)}
-                                  className="h-7 px-2 rounded text-xs text-[var(--color-ink-soft)] hover:bg-[var(--color-bg-soft)]"
+                                  className="h-7 px-2 rounded text-[12px] text-[var(--color-ink-soft)] hover:bg-[var(--color-bg-soft)]"
                                 >
                                   Delete
                                 </button>
@@ -760,9 +769,9 @@ export function ClassOccurrenceModal({
                   <div className="mt-3 p-3 rounded-md bg-[var(--color-bg-sunken)] flex flex-col gap-2">
                     <div className="flex gap-2">
                       <div className="flex flex-col flex-1 gap-1">
-                        <label className="text-xs font-medium">Title</label>
+                        <label className="text-[12px] font-medium">Title</label>
                         <input
-                          className="h-9 rounded border border-[var(--color-rule-strong)] bg-white px-3 text-sm"
+                          className="h-9 rounded border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 text-[13px]"
                           placeholder="e.g. Back Squat 5x5"
                           value={workoutForm.title}
                           onChange={(e) =>
@@ -771,7 +780,7 @@ export function ClassOccurrenceModal({
                         />
                       </div>
                       <div className="flex flex-col w-24 gap-1">
-                        <label className="text-xs font-medium">Format</label>
+                        <label className="text-[12px] font-medium">Format</label>
                         <select
                           value={workoutForm.format}
                           onChange={(e) =>
@@ -780,7 +789,7 @@ export function ClassOccurrenceModal({
                               format: e.target.value as "time" | "amrap",
                             })
                           }
-                          className="h-9 rounded border border-[var(--color-rule-strong)] bg-white px-2 text-sm"
+                          className="h-9 rounded border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-2 text-[13px]"
                         >
                           <option value="time">Time</option>
                           <option value="amrap">AMRAP</option>
@@ -788,9 +797,9 @@ export function ClassOccurrenceModal({
                       </div>
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-xs font-medium">Description (optional)</label>
+                      <label className="text-[12px] font-medium">Description (optional)</label>
                       <textarea
-                        className="rounded border border-[var(--color-rule-strong)] bg-white px-3 py-2 text-sm"
+                        className="rounded border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 py-2 text-[13px]"
                         value={workoutForm.description}
                         onChange={(e) =>
                           setWorkoutForm({ ...workoutForm, description: e.target.value })
@@ -798,16 +807,9 @@ export function ClassOccurrenceModal({
                         rows={2}
                       />
                     </div>
-                    <label className="flex items-center gap-2 text-xs cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={workoutForm.applyToAll}
-                        onChange={(e) =>
-                          setWorkoutForm({ ...workoutForm, applyToAll: e.target.checked })
-                        }
-                      />
-                      Also apply to all other classes in this program
-                    </label>
+                    <p className="text-[11px] text-[var(--color-ink-muted)]">
+                      This workout will apply to this class. To assign it to other classes, use the Workouts tab in program settings.
+                    </p>
                     <div className="flex justify-end gap-2">
                       <button
                         onClick={() => {
@@ -816,17 +818,16 @@ export function ClassOccurrenceModal({
                             title: "",
                             description: "",
                             format: "time",
-                            applyToAll: false,
                           });
                         }}
-                        className="h-8 px-3 rounded text-sm text-[var(--color-ink-soft)] hover:bg-[var(--color-bg-soft)]"
+                        className="h-8 px-3 rounded text-[13px] text-[var(--color-ink-soft)] hover:bg-[var(--color-bg-soft)]"
                       >
                         Cancel
                       </button>
                       <button
                         onClick={handleAddWorkout}
                         disabled={savingWorkout || !workoutForm.title.trim()}
-                        className="h-8 px-3 rounded bg-primary text-white text-sm font-medium hover:bg-primary/90 disabled:opacity-60"
+                        className="h-8 px-3 rounded bg-[var(--color-accent)] text-white text-[13px] font-medium hover:bg-[var(--color-accent-rich)] disabled:opacity-60"
                       >
                         {savingWorkout ? "Adding..." : "Add"}
                       </button>
@@ -854,9 +855,10 @@ export function ClassOccurrenceModal({
               />
             )}
 
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            {error && <p className="text-[13px] text-[var(--color-danger)]">{error}</p>}
           </div>
         )}
+        </div>
       </div>
     </div>
   );
@@ -906,22 +908,22 @@ function WorkoutEditRow({
   }
 
   return (
-    <div className="rounded-md border border-blue-300 bg-blue-50 px-3 py-3 flex flex-col gap-2">
+    <div className="rounded-lg border border-[var(--color-accent-rule)] bg-[var(--color-accent-soft)] px-4 py-4 flex flex-col gap-3">
       <div className="flex gap-2">
         <div className="flex flex-col flex-1 gap-1">
-          <label className="text-xs font-medium">Title</label>
+          <label className="text-[12px] font-medium">Title</label>
           <input
-            className="h-9 rounded border border-[var(--color-rule-strong)] bg-white px-3 text-sm"
+            className="h-9 rounded border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 text-[13px]"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
         </div>
         <div className="flex flex-col w-24 gap-1">
-          <label className="text-xs font-medium">Format</label>
+          <label className="text-[12px] font-medium">Format</label>
           <select
             value={format}
             onChange={(e) => setFormat(e.target.value as "time" | "amrap")}
-            className="h-9 rounded border border-[var(--color-rule-strong)] bg-white px-2 text-sm"
+            className="h-9 rounded border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-2 text-[13px]"
           >
             <option value="time">Time</option>
             <option value="amrap">AMRAP</option>
@@ -929,15 +931,15 @@ function WorkoutEditRow({
         </div>
       </div>
       <div className="flex flex-col gap-1">
-        <label className="text-xs font-medium">Description (optional)</label>
+        <label className="text-[12px] font-medium">Description (optional)</label>
         <textarea
-          className="rounded border border-[var(--color-rule-strong)] bg-white px-3 py-2 text-sm"
+          className="rounded border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 py-2 text-[13px]"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={2}
         />
       </div>
-      <label className="flex items-center gap-2 text-xs cursor-pointer">
+      <label className="flex items-center gap-2 text-[12px] cursor-pointer">
         <input
           type="checkbox"
           checked={applyToAll}
@@ -949,14 +951,14 @@ function WorkoutEditRow({
         <button
           onClick={onCancel}
           disabled={saving}
-          className="h-8 px-3 rounded text-sm text-[var(--color-ink-soft)] hover:bg-[var(--color-bg-soft)]"
+          className="h-8 px-3 rounded text-[13px] text-[var(--color-ink-soft)] hover:bg-[var(--color-bg-soft)]"
         >
           Cancel
         </button>
         <button
           onClick={handleSave}
           disabled={saving || !title.trim()}
-          className="h-8 px-3 rounded bg-primary text-white text-sm font-medium hover:bg-primary/90 disabled:opacity-60"
+          className="h-8 px-3 rounded bg-[var(--color-accent)] text-white text-[13px] font-medium hover:bg-[var(--color-accent-rich)] disabled:opacity-60"
         >
           {saving ? "Saving..." : "Save"}
         </button>
@@ -1033,28 +1035,28 @@ function SettingsPanel({
 
   return (
     <div>
-      <h4 className="text-sm font-semibold mb-1">This class on {dateLabel}</h4>
-      <p className="text-xs text-[var(--color-ink-muted)] mb-4">
+      <h4 className="text-[13px] font-semibold mb-1">This class on {dateLabel}</h4>
+      <p className="text-[12px] text-[var(--color-ink-muted)] mb-4">
         Overrides apply only to this day. The recurring class itself is unaffected.
       </p>
 
       <div className="flex flex-col gap-4">
         {/* Start time override */}
         <div className="flex items-center gap-2 flex-wrap">
-          <label className="text-xs text-[var(--color-ink-soft)] w-20 flex-shrink-0">Start</label>
+          <label className="text-[12px] text-[var(--color-ink-soft)] w-20 flex-shrink-0">Start</label>
           <input
             type="time"
             value={timeLocal}
             onChange={(e) => setTimeLocal(e.target.value)}
             disabled={busy || savingTime || !occurrence}
-            className="h-9 rounded-md border border-[var(--color-rule-strong)] bg-white px-2 text-sm"
+            className="h-9 rounded-md border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-2 text-[13px]"
           />
           {timeLocal && (
             <button
               type="button"
               onClick={() => setTimeLocal("")}
               disabled={busy || savingTime}
-              className="h-8 px-2 rounded text-xs text-[var(--color-ink-soft)] hover:bg-[var(--color-bg-soft)]"
+              className="h-8 px-2 rounded text-[12px] text-[var(--color-ink-soft)] hover:bg-[var(--color-bg-soft)]"
             >
               Clear
             </button>
@@ -1064,7 +1066,7 @@ function SettingsPanel({
               type="button"
               onClick={saveTime}
               disabled={busy || savingTime}
-              className="h-9 px-3 rounded-md bg-primary text-white text-xs font-medium hover:bg-primary/90 disabled:opacity-60"
+              className="h-9 px-3 rounded-md bg-[var(--color-accent)] text-white text-[12px] font-medium hover:bg-[var(--color-accent-rich)] disabled:opacity-60"
             >
               {savingTime ? "Saving..." : "Save time"}
             </button>
@@ -1074,7 +1076,7 @@ function SettingsPanel({
               type="button"
               onClick={resetTime}
               disabled={busy || savingTime}
-              className="h-8 px-2 rounded text-xs text-[var(--color-ink-soft)] hover:bg-[var(--color-bg-soft)]"
+              className="h-8 px-2 rounded text-[12px] text-[var(--color-ink-soft)] hover:bg-[var(--color-bg-soft)]"
             >
               Reset to default
             </button>
@@ -1083,7 +1085,7 @@ function SettingsPanel({
 
         {/* Coach override */}
         <div className="flex items-center gap-2 flex-wrap">
-          <label className="text-xs text-[var(--color-ink-soft)] w-20 flex-shrink-0">Coach</label>
+          <label className="text-[12px] text-[var(--color-ink-soft)] w-20 flex-shrink-0">Coach</label>
           <select
             value={occurrenceCoachId ?? ""}
             onChange={(e) =>
@@ -1092,7 +1094,7 @@ function SettingsPanel({
               })
             }
             disabled={busy || !occurrence}
-            className="h-9 rounded-md border border-[var(--color-rule-strong)] bg-white px-2 text-sm"
+            className="h-9 rounded-md border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-2 text-[13px]"
           >
             <option value="">
               {defaultCoachId ? "— no coach —" : "— unassigned —"}
@@ -1113,7 +1115,7 @@ function SettingsPanel({
               type="button"
               onClick={() => onUpdate({ coach_id: defaultCoachId })}
               disabled={busy}
-              className="h-8 px-2 rounded text-xs text-[var(--color-ink-soft)] hover:bg-[var(--color-bg-soft)]"
+              className="h-8 px-2 rounded text-[12px] text-[var(--color-ink-soft)] hover:bg-[var(--color-bg-soft)]"
             >
               Reset to default
             </button>
@@ -1122,13 +1124,13 @@ function SettingsPanel({
 
         {/* Delete / restore this occurrence */}
         <div className="flex items-center gap-2 flex-wrap border-t border-[var(--color-rule)] pt-4">
-          <label className="text-xs text-[var(--color-ink-soft)] w-20 flex-shrink-0">Status</label>
+          <label className="text-[12px] text-[var(--color-ink-soft)] w-20 flex-shrink-0">Status</label>
           {isCancelled ? (
             <button
               type="button"
               onClick={onRestore}
               disabled={busy}
-              className="h-9 px-3 rounded-md border border-[var(--color-rule-strong)] bg-white text-sm font-medium text-[var(--color-ink-soft)] hover:bg-[var(--color-bg-sunken)] disabled:opacity-60"
+              className="h-9 px-3 rounded-md border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] text-[13px] font-medium text-[var(--color-ink-soft)] hover:bg-[var(--color-bg-sunken)] disabled:opacity-60"
             >
               Restore this class
             </button>
@@ -1137,7 +1139,7 @@ function SettingsPanel({
               type="button"
               onClick={onDelete}
               disabled={busy}
-              className="h-9 px-3 rounded-md border border-red-300 bg-white text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
+              className="h-9 px-3 rounded-md border border-[var(--color-danger)] bg-[var(--color-bg-card)] text-[13px] font-medium text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)] disabled:opacity-60"
             >
               Delete this class
             </button>
@@ -1185,9 +1187,9 @@ function UserResultsPanel({
         Results
       </div>
       {workoutsLoading ? (
-        <p className="text-xs text-[var(--color-ink-muted)]">Loading workouts...</p>
+        <p className="text-[12px] text-[var(--color-ink-muted)]">Loading workouts...</p>
       ) : workouts.length === 0 ? (
-        <p className="text-xs text-[var(--color-ink-muted)]">
+        <p className="text-[12px] text-[var(--color-ink-muted)]">
           No workouts for this class today. Add a workout above to record results.
         </p>
       ) : (
@@ -1243,6 +1245,9 @@ function ResultRow({
     stat?.amrap_rounds != null ? String(stat.amrap_rounds) : "",
   );
   const [reps, setReps] = useState(stat?.amrap_reps != null ? String(stat.amrap_reps) : "");
+  const [rxScaled, setRxScaled] = useState<"rx" | "scaled" | null>(
+    stat?.rx_scaled ?? null,
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -1255,6 +1260,7 @@ function ResultRow({
       setRounds(stat?.amrap_rounds != null ? String(stat.amrap_rounds) : "");
       setReps(stat?.amrap_reps != null ? String(stat.amrap_reps) : "");
     }
+    setRxScaled(stat?.rx_scaled ?? null);
   }, [stat, format]);
 
   async function handleSave() {
@@ -1262,7 +1268,7 @@ function ResultRow({
     setSaving(true);
     setError(null);
     try {
-      const body: Record<string, any> = { user_id: userId };
+      const body: Record<string, any> = { user_id: userId, rx_scaled: rxScaled };
       if (format === "time") {
         const m = parseInt(min || "0", 10) || 0;
         const s = parseInt(sec || "0", 10) || 0;
@@ -1296,6 +1302,7 @@ function ResultRow({
         setRounds("");
         setReps("");
       }
+      setRxScaled(null);
       return;
     }
     if (!confirm(`Clear ${workoutTitle} result for ${name}?`)) return;
@@ -1310,6 +1317,7 @@ function ResultRow({
         setRounds("");
         setReps("");
       }
+      setRxScaled(null);
     } catch (err) {
       console.error(err);
     } finally {
@@ -1323,19 +1331,19 @@ function ResultRow({
       : rounds !== "" || reps !== "";
 
   return (
-    <div className="flex items-center gap-2 rounded border border-[var(--color-rule)] px-2 py-1.5 bg-white">
+    <div className="flex items-center gap-2 rounded border border-[var(--color-rule)] px-2 py-1.5 bg-[var(--color-bg-card)]">
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
           <span
             className={`px-1 py-0.5 rounded text-[9px] font-semibold uppercase ${
               format === "time"
-                ? "bg-blue-100 text-blue-700"
-                : "bg-green-100 text-green-700"
+                ? "bg-[var(--color-bg-soft)] text-[var(--color-ink-soft)]"
+                : "bg-[var(--color-accent-soft)] text-[var(--color-accent-ink)]"
             }`}
           >
             {format}
           </span>
-          <span className="text-xs font-medium truncate">{workoutTitle}</span>
+          <span className="text-[12px] font-medium truncate">{workoutTitle}</span>
         </div>
       </div>
       {format === "time" ? (
@@ -1348,9 +1356,9 @@ function ResultRow({
             value={min}
             onChange={(e) => setMin(e.target.value)}
             disabled={!canManage}
-            className="w-12 h-7 rounded border border-[var(--color-rule-strong)] px-1.5 text-xs text-right"
+            className="w-12 h-7 rounded border border-[var(--color-rule-strong)] px-1.5 text-[12px] text-right"
           />
-          <span className="text-xs text-[var(--color-ink-muted)]">:</span>
+          <span className="text-[12px] text-[var(--color-ink-muted)]">:</span>
           <input
             type="number"
             inputMode="numeric"
@@ -1360,7 +1368,7 @@ function ResultRow({
             value={sec}
             onChange={(e) => setSec(e.target.value)}
             disabled={!canManage}
-            className="w-12 h-7 rounded border border-[var(--color-rule-strong)] px-1.5 text-xs text-right"
+            className="w-12 h-7 rounded border border-[var(--color-rule-strong)] px-1.5 text-[12px] text-right"
           />
         </div>
       ) : (
@@ -1373,9 +1381,9 @@ function ResultRow({
             value={rounds}
             onChange={(e) => setRounds(e.target.value)}
             disabled={!canManage}
-            className="w-14 h-7 rounded border border-[var(--color-rule-strong)] px-1.5 text-xs text-right"
+            className="w-14 h-7 rounded border border-[var(--color-rule-strong)] px-1.5 text-[12px] text-right"
           />
-          <span className="text-xs text-[var(--color-ink-muted)]">+</span>
+          <span className="text-[12px] text-[var(--color-ink-muted)]">+</span>
           <input
             type="number"
             inputMode="numeric"
@@ -1384,16 +1392,32 @@ function ResultRow({
             value={reps}
             onChange={(e) => setReps(e.target.value)}
             disabled={!canManage}
-            className="w-14 h-7 rounded border border-[var(--color-rule-strong)] px-1.5 text-xs text-right"
+            className="w-14 h-7 rounded border border-[var(--color-rule-strong)] px-1.5 text-[12px] text-right"
           />
         </div>
       )}
       {canManage && (
         <>
+          <div className="flex gap-0.5">
+            {(["rx", "scaled"] as const).map((opt) => (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => setRxScaled(rxScaled === opt ? null : opt)}
+                className={`h-6 px-2 rounded-full text-[10px] font-medium border transition-colors ${
+                  rxScaled === opt
+                    ? "bg-[var(--color-accent-soft)] text-[var(--color-accent-ink)] border-[var(--color-accent-rule)]"
+                    : "bg-[var(--color-bg-card)] text-[var(--color-ink-soft)] border-[var(--color-rule)]"
+                }`}
+              >
+                {opt === "rx" ? "Rx" : "Scaled"}
+              </button>
+            ))}
+          </div>
           <button
             onClick={handleSave}
             disabled={saving}
-            className="h-7 px-2 rounded bg-primary text-white text-xs font-medium hover:bg-primary/90 disabled:opacity-60"
+            className="h-7 px-2 rounded bg-[var(--color-accent)] text-white text-[12px] font-medium hover:bg-[var(--color-accent-rich)] disabled:opacity-60"
           >
             {saving ? "…" : "Save"}
           </button>
@@ -1401,7 +1425,7 @@ function ResultRow({
             <button
               onClick={handleClear}
               disabled={saving}
-              className="h-7 px-2 rounded text-xs text-[var(--color-ink-soft)] hover:bg-[var(--color-bg-soft)] disabled:opacity-60"
+              className="h-7 px-2 rounded text-[12px] text-[var(--color-ink-soft)] hover:bg-[var(--color-bg-soft)] disabled:opacity-60"
               title="Clear result"
             >
               ✕
@@ -1409,7 +1433,7 @@ function ResultRow({
           )}
         </>
       )}
-      {error && <span className="text-[10px] text-red-600">{error}</span>}
+      {error && <span className="text-[10px] text-[var(--color-danger)]">{error}</span>}
     </div>
   );
 }
@@ -1454,12 +1478,12 @@ function SignupSection({
 }) {
   const pillClass =
     accent === "green"
-      ? "bg-green-100 text-green-700"
+      ? "bg-[var(--color-accent-soft)] text-[var(--color-accent-ink)]"
       : "bg-[var(--color-bg-soft)] text-[var(--color-ink-soft)]";
   return (
     <div>
       <div className="flex items-center gap-2 mb-2">
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--color-ink-muted)]">
+        <h4 className="text-[12px] font-semibold uppercase tracking-wide text-[var(--color-ink-muted)]">
           {title}
         </h4>
         <span className={`px-1.5 py-0.5 rounded-full text-[11px] font-semibold ${pillClass}`}>
@@ -1505,13 +1529,13 @@ function SignupRow({
     <div
       className={`flex items-center gap-3 rounded-md border px-3 py-2 ${
         signup.checked_in
-          ? "border-green-200 bg-green-50/40"
-          : "border-[var(--color-rule)] bg-white"
+          ? "border-[var(--color-accent-rule)] bg-[var(--color-accent-soft)]"
+          : "border-[var(--color-rule)] bg-[var(--color-bg-card)]"
       }`}
     >
       <Avatar profile={signup.profile} size={36} />
       <div className="min-w-0 flex-1">
-        <div className="text-sm font-medium truncate flex items-center gap-1.5">
+        <div className="text-[13px] font-medium truncate flex items-center gap-1.5">
           <span className="truncate">{name}</span>
           {isSelf && (
             <span className="text-[10px] uppercase tracking-wide text-[var(--color-ink-muted)] bg-[var(--color-bg-soft)] rounded px-1.5 py-0.5">
@@ -1520,12 +1544,12 @@ function SignupRow({
           )}
         </div>
         {signup.checked_in ? (
-          <div className="text-xs text-green-700 flex items-center gap-1">
+          <div className="text-[11px] text-[var(--color-accent-ink)] flex items-center gap-1">
             <span>✓</span>
             <span>Checked in{checkedInAt ? ` · ${checkedInAt}` : ""}</span>
           </div>
         ) : (
-          <div className="text-xs text-[var(--color-ink-muted)]">Not yet checked in</div>
+          <div className="text-[12px] text-[var(--color-ink-muted)]">Not yet checked in</div>
         )}
       </div>
       <div className="flex items-center gap-1 flex-shrink-0">
@@ -1533,7 +1557,7 @@ function SignupRow({
           <button
             onClick={onCheckIn}
             disabled={busy}
-            className="h-8 px-3 rounded-md bg-primary text-white text-xs font-medium hover:bg-primary/90 disabled:opacity-60"
+            className="h-8 px-3 rounded-md bg-[var(--color-accent)] text-white text-[12px] font-medium hover:bg-[var(--color-accent-rich)] disabled:opacity-60"
           >
             Check in
           </button>
@@ -1541,7 +1565,7 @@ function SignupRow({
         {canManage && signup.checked_in && onToggleResults && (
           <button
             onClick={onToggleResults}
-            className="h-8 px-2 rounded-md border border-[var(--color-rule-strong)] text-xs font-medium text-[var(--color-ink-soft)] hover:bg-[var(--color-bg-soft)]"
+            className="h-8 px-2 rounded-md border border-[var(--color-rule-strong)] text-[12px] font-medium text-[var(--color-ink-soft)] hover:bg-[var(--color-bg-soft)]"
             title={isResultsExpanded ? "Hide results" : "Show results"}
           >
             {isResultsExpanded ? "Hide" : "Results"}
@@ -1573,7 +1597,7 @@ function SignupRow({
           <button
             onClick={onRemove}
             disabled={busy}
-            className="h-8 w-8 rounded-md text-[var(--color-ink-muted)] hover:text-red-600 hover:bg-red-50 disabled:opacity-60 flex items-center justify-center"
+            className="h-8 w-8 rounded-md text-[var(--color-ink-muted)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)] disabled:opacity-60 flex items-center justify-center"
             title="Remove signup"
             aria-label="Remove signup"
           >

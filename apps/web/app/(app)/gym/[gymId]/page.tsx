@@ -6,19 +6,17 @@ import Link from "next/link";
 import {
   ArrowLeft,
   ArrowUpRight,
-  CalendarClock,
   CalendarDays,
-  ChevronRight,
   CreditCard,
   Dumbbell,
   LayoutDashboard,
   Megaphone,
   Plus,
   Settings as SettingsIcon,
-  Sparkles,
   UserPlus,
   Users,
 } from "lucide-react";
+import { APP_NAME } from "@acuo/shared";
 import { apiFetch } from "@/lib/api";
 import { AnnouncementsPanel } from "@/components/AnnouncementsPanel";
 import { ClassCalendar } from "@/components/ClassCalendar";
@@ -27,6 +25,7 @@ import {
   StatusToggle,
   MemberProgramEnrollments,
 } from "@/components/MemberDetails";
+
 
 type TabKey =
   | "overview"
@@ -46,6 +45,7 @@ export default function GymPage() {
   const [programs, setPrograms] = useState<any[]>([]);
   const [members, setMembers] = useState<any[]>([]);
   const [profile, setProfile] = useState<any>(null);
+  const [plansCount, setPlansCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
 
   const urlTab = (searchParams?.get("tab") as TabKey | null) || "overview";
@@ -70,17 +70,19 @@ export default function GymPage() {
     setLoading(true);
     (async () => {
       try {
-        const [gymData, myGyms, programsData, profileData] = await Promise.all([
+        const [gymData, myGyms, programsData, profileData, plansData] = await Promise.all([
           apiFetch(`/gyms/${gymId}`),
           apiFetch("/gyms"),
           apiFetch(`/gyms/${gymId}/programs`).catch(() => []),
           apiFetch("/profile").catch(() => null),
+          apiFetch(`/gyms/${gymId}/plans`).catch(() => []),
         ]);
         const memberData = (myGyms || []).find((m: any) => m.gym?.id === gymId);
         setGym(gymData);
         setMembership(memberData);
         setPrograms(programsData || []);
         setProfile(profileData);
+        setPlansCount((plansData || []).length);
         const memberRoles: string[] = memberData?.roles || (memberData?.role ? [memberData.role] : []);
         if (memberRoles.includes("admin") || memberRoles.includes("coach")) {
           try {
@@ -113,24 +115,6 @@ export default function GymPage() {
       setMembers(data || []);
     } catch (err) {
       console.error(err);
-    }
-  }
-
-  async function handleToggleRole(userId: string, role: string, hasRole: boolean) {
-    try {
-      if (hasRole) {
-        await apiFetch(`/gyms/${gymId}/members/${userId}/roles/${role}`, {
-          method: "DELETE",
-        });
-      } else {
-        await apiFetch(`/gyms/${gymId}/members/${userId}/roles`, {
-          method: "POST",
-          body: JSON.stringify({ role }),
-        });
-      }
-      await reloadMembers();
-    } catch (err: any) {
-      alert(err?.message || "Failed to update role");
     }
   }
 
@@ -184,7 +168,9 @@ export default function GymPage() {
                   ? members.length
                   : t.key === "programs"
                     ? programs.length
-                    : null;
+                    : t.key === "memberships" && isAdmin
+                      ? plansCount
+                      : null;
               const Icon = t.icon;
               return (
                 <button
@@ -277,7 +263,6 @@ export default function GymPage() {
           <MembersPanel
             members={members}
             gymId={gymId as string}
-            onToggleRole={handleToggleRole}
             onReload={reloadMembers}
           />
         )}
@@ -395,16 +380,6 @@ function GymIdentity({ gym, membership }: { gym: any; membership: any }) {
 
 /* -------------------- Overview (Dashboard) -------------------- */
 
-const DAY_NAMES = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-];
-
 function OverviewPanel({
   gym,
   membership,
@@ -427,135 +402,37 @@ function OverviewPanel({
   const canManage =
     memberRoles.includes("admin") || memberRoles.includes("coach");
 
-  const [classes, setClasses] = useState<any[]>([]);
-  const [classesLoading, setClassesLoading] = useState(true);
-
-  useEffect(() => {
-    if (!gym?.id) return;
-    setClassesLoading(true);
-    (async () => {
-      try {
-        const data = await apiFetch(`/gyms/${gym.id}/classes`);
-        setClasses(data || []);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setClassesLoading(false);
-      }
-    })();
-  }, [gym?.id]);
-
-  const { dateLabel, dayOfWeek, dayName } = useMemo(() => {
-    const now = new Date();
-    return {
-      dateLabel: now.toLocaleDateString("en-US", {
-        weekday: "long",
-        month: "long",
-        day: "numeric",
-      }),
-      dayOfWeek: now.getDay(),
-      dayName: DAY_NAMES[now.getDay()],
-    };
-  }, []);
-
-  const todaysClasses = useMemo(() => {
-    const today: Array<{ cls: any; start: string | null; schedule: any }> = [];
-    for (const cls of classes) {
-      const schedules = cls.schedules || cls.class_schedules || [];
-      for (const s of schedules) {
-        if (s.day_of_week === dayOfWeek) {
-          today.push({ cls, start: s.start_time ?? null, schedule: s });
-        }
-      }
-    }
-    return today.sort((a, b) => {
-      if (!a.start) return 1;
-      if (!b.start) return -1;
-      return a.start.localeCompare(b.start);
+  const dateLabel = useMemo(() => {
+    return new Date().toLocaleDateString("en-US", {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
     });
-  }, [classes, dayOfWeek]);
-
-  const activeMembers = useMemo(
-    () => members.filter((m) => m.status === "active").length,
-    [members],
-  );
+  }, []);
 
   return (
     <section className="flex flex-col gap-8">
-      {/* Header */}
-      <header className="flex items-end justify-between gap-4">
-        <div>
-          <h1 className="text-[24px] font-semibold tracking-tight leading-none text-[var(--color-ink)]">
-            Overview
-          </h1>
-          <p className="mt-1.5 text-[13px] text-[var(--color-ink-soft)]">
-            {dateLabel}
-          </p>
-        </div>
-      </header>
+      <PanelHeader
+        eyebrow="Dashboard"
+        title="Overview"
+        subtitle={dateLabel}
+      />
 
       {/* Metrics */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
-        {isAdmin ? (
-          <MetricCard
-            label="Active members"
-            value={activeMembers}
-            secondary={
-              members.length > 0 ? `of ${members.length}` : undefined
-            }
-            icon={Users}
-            onClick={() => onNavigate("members")}
-          />
-        ) : (
-          <MetricCard
-            label="Your role"
-            value={membership?.role || "—"}
-            valueTransform="capitalize"
-            icon={Sparkles}
-          />
-        )}
-        <MetricCard
-          label="Programs"
-          value={programs.length}
-          icon={Dumbbell}
-          onClick={() => onNavigate("programs")}
-        />
-      </div>
-
-      {/* Today + side column */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <div className="lg:col-span-2">
-          <TodayCard
-            classes={todaysClasses}
-            loading={classesLoading}
-            dayName={dayName}
-          />
-        </div>
-        <div className="flex flex-col gap-5">
-          {isAdmin && <RosterCard members={members} onNavigate={onNavigate} />}
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <MembersCard members={members} onClick={isAdmin ? () => onNavigate("members") : undefined} />
+        <ProgramsCard programs={programs} onClick={() => onNavigate("programs")} />
       </div>
 
       {/* Calendar */}
       <section>
-        <div className="flex items-end justify-between mb-4">
-          <div>
-            <h2 className="text-[18px] font-semibold tracking-tight text-[var(--color-ink)]">
-              Schedule
-            </h2>
-            <p className="text-[13px] text-[var(--color-ink-soft)] mt-1">
-              All scheduled classes
-            </p>
-          </div>
-          {isAdmin && (
-            <button
-              onClick={() => onNavigate("programs")}
-              className="hidden sm:inline-flex items-center gap-1 text-[13px] font-medium text-[var(--color-ink-soft)] hover:text-primary transition-colors"
-            >
-              Manage programs
-              <ArrowUpRight size={14} />
-            </button>
-          )}
+        <div className="mb-4">
+          <h2 className="text-[18px] font-semibold tracking-tight text-[var(--color-ink)]">
+            Schedule
+          </h2>
+          <p className="text-[13px] text-[var(--color-ink-soft)] mt-1">
+            All scheduled classes
+          </p>
         </div>
         <GymCalendar
           gymId={gym.id}
@@ -568,185 +445,7 @@ function OverviewPanel({
   );
 }
 
-function MetricCard({
-  label,
-  value,
-  secondary,
-  icon: Icon,
-  onClick,
-  valueTransform,
-}: {
-  label: string;
-  value: string | number;
-  secondary?: string;
-  icon: typeof Users;
-  accent?: boolean;
-  onClick?: () => void;
-  valueTransform?: "capitalize";
-}) {
-  const Comp: any = onClick ? "button" : "div";
-  const base =
-    "group relative rounded-lg p-4 text-left transition-colors bg-[var(--color-bg-card)] border border-[var(--color-rule)]";
-  const interactive = onClick
-    ? "hover:border-[var(--color-rule-strong)] cursor-pointer"
-    : "";
-  return (
-    <Comp className={`${base} ${interactive}`} onClick={onClick}>
-      <div className="flex items-center justify-between mb-5">
-        <span className="text-[12px] font-medium text-[var(--color-ink-soft)]">
-          {label}
-        </span>
-        <Icon
-          size={14}
-          strokeWidth={1.75}
-          className="text-[var(--color-ink-muted)]"
-        />
-      </div>
-      <div className="flex items-baseline gap-1.5">
-        <span
-          className={`text-[28px] leading-none font-semibold tabular-nums text-[var(--color-ink)] ${
-            valueTransform === "capitalize" ? "capitalize text-[22px]" : ""
-          }`}
-        >
-          {value}
-        </span>
-        {secondary && (
-          <span className="text-[12px] tabular-nums text-[var(--color-ink-muted)]">
-            {secondary}
-          </span>
-        )}
-      </div>
-      {onClick && (
-        <ArrowUpRight
-          size={14}
-          className="absolute top-3.5 right-3.5 opacity-0 group-hover:opacity-100 transition-opacity text-[var(--color-ink-soft)]"
-        />
-      )}
-    </Comp>
-  );
-}
-
-function formatScheduleTime(t: string | null) {
-  if (!t) return "—";
-  // Accept "HH:MM" or "HH:MM:SS"
-  const [h, m] = t.split(":");
-  const hour = parseInt(h, 10);
-  if (Number.isNaN(hour)) return t;
-  const ampm = hour >= 12 ? "pm" : "am";
-  const h12 = hour % 12 === 0 ? 12 : hour % 12;
-  return `${h12}:${m ?? "00"}${ampm}`;
-}
-
-function TodayCard({
-  classes,
-  loading,
-  dayName,
-}: {
-  classes: Array<{ cls: any; start: string | null; schedule: any }>;
-  loading: boolean;
-  dayName: string;
-}) {
-  return (
-    <div className="rounded-lg border border-[var(--color-rule)] bg-[var(--color-bg-card)] overflow-hidden">
-      <header className="flex items-baseline justify-between gap-4 px-5 py-4 border-b border-[var(--color-rule)]">
-        <div>
-          <h2 className="text-[16px] font-semibold tracking-tight text-[var(--color-ink)]">
-            Today's schedule
-          </h2>
-          <p className="text-[12px] text-[var(--color-ink-soft)] mt-0.5">
-            {dayName}
-          </p>
-        </div>
-        <span className="text-[13px] tabular-nums text-[var(--color-ink-muted)]">
-          {loading ? "—" : `${classes.length} ${classes.length === 1 ? "class" : "classes"}`}
-        </span>
-      </header>
-
-      {loading ? (
-        <div className="px-5 py-12 flex items-center justify-center gap-2 text-[var(--color-ink-muted)]">
-          <span className="relative flex h-1.5 w-1.5">
-            <span className="absolute inline-flex h-full w-full rounded-full bg-primary opacity-60 animate-ping" />
-            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
-          </span>
-          <span className="text-[13px] text-[var(--color-ink-soft)]">
-            Loading
-          </span>
-        </div>
-      ) : classes.length === 0 ? (
-        <div className="px-5 py-14 text-center">
-          <div className="mx-auto mb-3 w-9 h-9 rounded-full bg-[var(--color-bg-soft)] flex items-center justify-center">
-            <CalendarClock
-              size={16}
-              strokeWidth={1.5}
-              className="text-[var(--color-ink-muted)]"
-            />
-          </div>
-          <p className="text-sm text-[var(--color-ink-soft)]">
-            No classes scheduled for {dayName}.
-          </p>
-        </div>
-      ) : (
-        <ul>
-          {classes.map(({ cls, start, schedule }, i) => (
-            <li
-              key={`${cls.id}-${i}`}
-              className="group flex items-center gap-4 px-5 py-3.5 border-b border-[var(--color-rule)] last:border-0 hover:bg-[var(--color-bg-soft)]/60 transition-colors cursor-default"
-            >
-              <div className="flex flex-col items-start w-16 shrink-0">
-                <span className="text-[13px] font-semibold tabular-nums text-[var(--color-ink)]">
-                  {formatScheduleTime(start)}
-                </span>
-                {schedule?.duration_minutes && (
-                  <span className="text-[11px] tabular-nums text-[var(--color-ink-muted)] mt-0.5">
-                    {schedule.duration_minutes} min
-                  </span>
-                )}
-              </div>
-              <div className="w-px self-stretch bg-[var(--color-rule)]" />
-              <div className="flex-1 min-w-0">
-                <div className="text-[14px] font-medium truncate text-[var(--color-ink)]">
-                  {cls.name || cls.title || "Untitled class"}
-                </div>
-                <div className="flex items-center gap-2 mt-0.5 text-[12px] text-[var(--color-ink-soft)]">
-                  {cls.program?.name && <span>{cls.program.name}</span>}
-                  {cls.program?.name && cls.coach?.first_name && (
-                    <span className="text-[var(--color-ink-muted)]">·</span>
-                  )}
-                  {cls.coach?.first_name && (
-                    <span>
-                      Coach {cls.coach.first_name}
-                      {cls.coach.last_name ? ` ${cls.coach.last_name[0]}.` : ""}
-                    </span>
-                  )}
-                  {!cls.program?.name && !cls.coach?.first_name && (
-                    <span className="text-[var(--color-ink-muted)]">
-                      Recurring class
-                    </span>
-                  )}
-                </div>
-              </div>
-              <ChevronRight
-                size={14}
-                className="text-[var(--color-rule-strong)] group-hover:text-[var(--color-ink-soft)] group-hover:translate-x-0.5 transition-all"
-              />
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-function RosterCard({
-  members,
-  onNavigate,
-}: {
-  members: any[];
-  onNavigate: (t: TabKey) => void;
-}) {
-  const active = members.filter((m) => m.status === "active").length;
-  const inactive = members.length - active;
-  const activePct = members.length ? (active / members.length) * 100 : 0;
+function MembersCard({ members, onClick }: { members: any[]; onClick?: () => void }) {
   const roleTallies = useMemo(() => {
     const tally = { admin: 0, coach: 0, member: 0 };
     for (const m of members) {
@@ -758,78 +457,90 @@ function RosterCard({
     return tally;
   }, [members]);
 
+  const Comp: any = onClick ? "button" : "div";
   return (
-    <div className="rounded-lg border border-[var(--color-rule)] bg-[var(--color-bg-card)] p-5">
-      <div className="flex items-baseline justify-between mb-4">
-        <h2 className="text-[15px] font-semibold tracking-tight text-[var(--color-ink)]">
-          Members
-        </h2>
-        <button
-          onClick={() => onNavigate("members")}
-          className="inline-flex items-center gap-1 text-[12px] font-medium text-[var(--color-ink-soft)] hover:text-primary transition-colors"
-        >
-          View all
-          <ArrowUpRight size={12} />
-        </button>
+    <Comp
+      className="group relative flex flex-col rounded-lg p-5 text-left transition-colors bg-[var(--color-bg-card)] border border-[var(--color-rule)] hover:border-[var(--color-rule-strong)] cursor-pointer"
+      onClick={onClick}
+    >
+      <div className="flex items-center justify-between mb-4">
+        <span className="text-[12px] font-medium text-[var(--color-ink-soft)]">Members</span>
+        <Users size={14} strokeWidth={1.75} className="text-[var(--color-ink-muted)]" />
       </div>
-
-      <div className="flex items-baseline gap-2 mb-3">
-        <span className="text-[28px] font-semibold tabular-nums leading-none text-[var(--color-ink)]">
-          {members.length}
-        </span>
-        <span className="text-[12px] text-[var(--color-ink-soft)]">
-          total members
-        </span>
+      <span className="text-[28px] leading-none font-semibold tabular-nums text-[var(--color-ink)]">
+        {members.length}
+      </span>
+      <div className="flex flex-col gap-1 mt-4 pt-4 border-t border-[var(--color-rule)]">
+        {roleTallies.admin > 0 && (
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="text-[var(--color-ink-soft)]">Admins</span>
+            <span className="tabular-nums font-medium text-[var(--color-ink)]">{roleTallies.admin}</span>
+          </div>
+        )}
+        {roleTallies.coach > 0 && (
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="text-[var(--color-ink-soft)]">Coaches</span>
+            <span className="tabular-nums font-medium text-[var(--color-ink)]">{roleTallies.coach}</span>
+          </div>
+        )}
+        {roleTallies.member > 0 && (
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="text-[var(--color-ink-soft)]">Members</span>
+            <span className="tabular-nums font-medium text-[var(--color-ink)]">{roleTallies.member}</span>
+          </div>
+        )}
       </div>
-
-      <div
-        className="h-1 w-full rounded-full bg-[var(--color-bg-soft)] overflow-hidden mb-4"
-        role="progressbar"
-        aria-valuenow={active}
-        aria-valuemax={members.length}
-      >
-        <div
-          className="h-full bg-primary rounded-full transition-all"
-          style={{ width: `${activePct}%` }}
+      {onClick && (
+        <ArrowUpRight
+          size={14}
+          className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity text-[var(--color-ink-soft)]"
         />
+      )}
+    </Comp>
+  );
+}
+
+function ProgramsCard({ programs, onClick }: { programs: any[]; onClick?: () => void }) {
+  const sorted = useMemo(
+    () => [...programs].sort((a, b) => (b.enrollment_count ?? 0) - (a.enrollment_count ?? 0)),
+    [programs],
+  );
+  const top = sorted.slice(0, 3);
+
+  return (
+    <button
+      className="group relative flex flex-col rounded-lg p-5 text-left transition-colors bg-[var(--color-bg-card)] border border-[var(--color-rule)] hover:border-[var(--color-rule-strong)] cursor-pointer"
+      onClick={onClick}
+    >
+      <div className="flex items-center justify-between mb-4">
+        <span className="text-[12px] font-medium text-[var(--color-ink-soft)]">Programs</span>
+        <Dumbbell size={14} strokeWidth={1.75} className="text-[var(--color-ink-muted)]" />
       </div>
-
-      <dl className="grid grid-cols-2 gap-y-2.5 text-[12px]">
-        <dt className="flex items-center gap-2 text-[var(--color-ink-soft)]">
-          <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-          Active
-        </dt>
-        <dd className="tabular-nums text-right font-medium text-[var(--color-ink)]">{active}</dd>
-        <dt className="flex items-center gap-2 text-[var(--color-ink-soft)]">
-          <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-rule-strong)]" />
-          Inactive
-        </dt>
-        <dd className="tabular-nums text-right text-[var(--color-ink-muted)]">
-          {inactive}
-        </dd>
-      </dl>
-
-      {(roleTallies.admin + roleTallies.coach) > 0 && (
-        <div className="mt-4 pt-4 border-t border-[var(--color-rule)] flex items-center gap-4 text-[11px]">
-          {roleTallies.admin > 0 && (
-            <span className="flex items-center gap-1.5 text-[var(--color-ink-soft)]">
-              <span className="tabular-nums font-medium text-[var(--color-ink)]">
-                {roleTallies.admin}
+      <span className="text-[28px] leading-none font-semibold tabular-nums text-[var(--color-ink)]">
+        {programs.length}
+      </span>
+      {top.length > 0 && (
+        <div className="flex flex-col gap-1 mt-4 pt-4 border-t border-[var(--color-rule)]">
+          {top.map((p: any) => (
+            <div key={p.id} className="flex items-center justify-between text-[11px]">
+              <span className="truncate text-[var(--color-ink-soft)]">{p.name}</span>
+              <span className="tabular-nums font-medium text-[var(--color-ink)] ml-2 shrink-0">
+                {p.enrollment_count ?? 0}
               </span>
-              admin{roleTallies.admin === 1 ? "" : "s"}
-            </span>
-          )}
-          {roleTallies.coach > 0 && (
-            <span className="flex items-center gap-1.5 text-[var(--color-ink-soft)]">
-              <span className="tabular-nums font-medium text-[var(--color-ink)]">
-                {roleTallies.coach}
-              </span>
-              coach{roleTallies.coach === 1 ? "" : "es"}
-            </span>
+            </div>
+          ))}
+          {programs.length > 3 && (
+            <div className="text-[10px] text-[var(--color-ink-muted)]">
+              +{programs.length - 3} more
+            </div>
           )}
         </div>
       )}
-    </div>
+      <ArrowUpRight
+        size={14}
+        className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity text-[var(--color-ink-soft)]"
+      />
+    </button>
   );
 }
 
@@ -876,6 +587,7 @@ function GymCalendar({
         <ClassOccurrenceModal
           cls={selected.cls}
           date={selected.date}
+          gymId={gymId}
           currentUserId={currentUserId}
           canManage={canManage}
           members={members}
@@ -891,12 +603,10 @@ function GymCalendar({
 function MembersPanel({
   members,
   gymId,
-  onToggleRole,
   onReload,
 }: {
   members: any[];
   gymId: string;
-  onToggleRole: (userId: string, role: string, hasRole: boolean) => void;
   onReload: () => void | Promise<void>;
 }) {
   const router = useRouter();
@@ -905,12 +615,6 @@ function MembersPanel({
     "all" | "admin" | "coach" | "member"
   >("all");
   const [showAdd, setShowAdd] = useState(false);
-
-  const allRoles: { key: string; label: string }[] = [
-    { key: "member", label: "Member" },
-    { key: "coach", label: "Coach" },
-    { key: "admin", label: "Admin" },
-  ];
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -940,7 +644,7 @@ function MembersPanel({
       <PanelHeader
         eyebrow="Roster"
         title="Members"
-        subtitle="Click a row to see details and results. Click a role chip to toggle it."
+        subtitle="Click a row to see details and manage roles."
         action={
           <button
             onClick={() => setShowAdd(true)}
@@ -1090,33 +794,15 @@ function MembersPanel({
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <div
-                        className="flex flex-wrap gap-1.5"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {allRoles.map((r) => {
-                          const hasRole = memberRoles.includes(r.key);
-                          return (
-                            <button
-                              key={r.key}
-                              onClick={() =>
-                                onToggleRole(m.user_id, r.key, hasRole)
-                              }
-                              className={`inline-flex items-center h-6 px-2 rounded-full text-[11px] font-medium border transition-colors ${
-                                hasRole
-                                  ? r.key === "admin"
-                                    ? "bg-[var(--color-accent-soft)] text-[var(--color-accent-ink)] border-[var(--color-accent-rule)] hover:bg-[#d1fae5]"
-                                    : "bg-[var(--color-ink)] text-white border-[var(--color-ink)] hover:bg-[var(--color-ink-strong)]"
-                                  : "bg-[var(--color-bg-card)] text-[var(--color-ink-muted)] border-[var(--color-rule)] hover:text-[var(--color-ink)] hover:border-[var(--color-rule-strong)]"
-                              }`}
-                              title={
-                                hasRole ? `Remove ${r.label}` : `Add ${r.label}`
-                              }
-                            >
-                              {r.label}
-                            </button>
-                          );
-                        })}
+                      <div className="flex flex-wrap gap-1.5">
+                        {memberRoles.map((role: string) => (
+                          <span
+                            key={role}
+                            className="inline-flex items-center h-6 px-2 rounded-full text-[11px] font-medium border capitalize bg-[var(--color-bg-soft)] text-[var(--color-ink-soft)] border-[var(--color-rule)]"
+                          >
+                            {role}
+                          </span>
+                        ))}
                       </div>
                     </td>
                     <td className="px-4 py-3 align-middle">
@@ -1125,50 +811,24 @@ function MembersPanel({
                           —
                         </span>
                       ) : (
-                        <div className="flex items-center gap-2">
-                          <div className="flex -space-x-1">
-                            {enrollments.slice(0, 3).map((pe: any) => (
-                              <span
-                                key={pe.id}
-                                title={`${pe.program_name} — ${pe.status}`}
-                                className={`inline-flex items-center justify-center h-6 w-6 rounded-full text-[10px] font-semibold ring-2 ring-[var(--color-bg-card)] ${
-                                  pe.status === "active"
-                                    ? "bg-[var(--color-accent-soft)] text-[var(--color-accent-ink)] border border-[var(--color-accent-rule)]"
-                                    : "bg-[var(--color-bg-soft)] text-[var(--color-ink-muted)] border border-[var(--color-rule)]"
-                                }`}
-                              >
-                                {(pe.program_name?.[0] || "?").toUpperCase()}
-                              </span>
-                            ))}
-                          </div>
-                          <span className="text-[11.5px] tabular-nums text-[var(--color-ink-soft)]">
-                            {activeEnrollments.length}
-                            <span className="text-[var(--color-ink-muted)]">
-                              /{enrollments.length}
-                            </span>
-                          </span>
-                        </div>
+                        <span className="text-[12.5px] tabular-nums text-[var(--color-ink-soft)]">
+                          {activeEnrollments.length} active
+                        </span>
                       )}
                     </td>
                     <td className="px-4 py-3">
                       {(() => {
                         const subs: any[] = m.subscriptions || [];
-                        const active = subs.find((s) => s.status === "active");
-                        if (!active) {
+                        const activeSubs = subs.filter((s) => s.status === "active");
+                        if (activeSubs.length === 0) {
                           return (
                             <span className="text-[12px] text-[var(--color-ink-muted)]">—</span>
                           );
                         }
-                        const priceCents = active.plan?.price_cents ?? 0;
                         return (
-                          <div className="flex items-center gap-2">
-                            <span className="text-[12.5px] font-medium text-[var(--color-ink)] truncate max-w-[140px]">
-                              {active.plan?.name || "Plan"}
-                            </span>
-                            <span className="inline-flex items-center h-5 px-1.5 rounded-full bg-[var(--color-accent-soft)] text-[var(--color-accent-ink)] text-[10.5px] font-semibold tabular-nums">
-                              ${(priceCents / 100).toFixed(0)}
-                            </span>
-                          </div>
+                          <span className="text-[12.5px] tabular-nums text-[var(--color-ink-soft)]">
+                            {activeSubs.length} active
+                          </span>
                         );
                       })()}
                     </td>
@@ -1279,7 +939,7 @@ function AddMemberModal({
       aria-labelledby="add-member-title"
     >
       <div
-        className="w-full max-w-md bg-white rounded-2xl shadow-[var(--shadow-lifted)] border border-[var(--color-rule)] overflow-hidden"
+        className="w-full max-w-md bg-[var(--color-bg-card)] rounded-2xl shadow-[var(--shadow-lifted)] border border-[var(--color-rule)] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between px-6 pt-6 pb-5 border-b border-[var(--color-rule)]">
@@ -1294,7 +954,7 @@ function AddMemberModal({
               Add a member
             </h3>
             <p className="text-[13px] text-[var(--color-ink-soft)] mt-1">
-              They must already have an Acuo account.
+              They must already have a {APP_NAME} account.
             </p>
           </div>
           <button
@@ -1308,7 +968,7 @@ function AddMemberModal({
 
         <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="am-email" className="text-sm font-medium">
+            <label htmlFor="am-email" className="text-[11px] tracking-[0.12em] uppercase text-[var(--color-ink-muted)] font-medium">
               Email address
             </label>
             <input
@@ -1318,12 +978,12 @@ function AddMemberModal({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="member@example.com"
-              className="h-10 rounded-md border border-[var(--color-rule-strong)] bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
+              className="h-10 rounded-md border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
             />
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium">Initial roles</label>
+            <label className="text-[11px] tracking-[0.12em] uppercase text-[var(--color-ink-muted)] font-medium">Initial roles</label>
             <div className="flex flex-wrap gap-1.5">
               {(["member", "coach", "admin"] as const).map((r) => {
                 const active = roles.includes(r);
@@ -1336,7 +996,7 @@ function AddMemberModal({
                     className={`h-8 px-3.5 rounded-full text-[13px] font-medium capitalize border transition-colors ${
                       active
                         ? "bg-[var(--color-accent-soft)] text-[var(--color-accent-ink)] border-[var(--color-accent-rule-strong)]"
-                        : "bg-white text-[var(--color-ink-soft)] border-[var(--color-rule)] hover:text-[var(--color-ink)] hover:border-[var(--color-ink-faint)]"
+                        : "bg-[var(--color-bg-card)] text-[var(--color-ink-soft)] border-[var(--color-rule)] hover:text-[var(--color-ink)] hover:border-[var(--color-ink-faint)]"
                     }`}
                   >
                     {active ? "✓ " : "+ "}
@@ -1352,7 +1012,7 @@ function AddMemberModal({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium">Gender</label>
+            <label className="text-[11px] tracking-[0.12em] uppercase text-[var(--color-ink-muted)] font-medium">Gender</label>
             <div className="flex flex-wrap gap-1.5">
               {(
                 [
@@ -1375,7 +1035,7 @@ function AddMemberModal({
                     className={`h-8 px-3.5 rounded-full text-[13px] font-medium border transition-colors ${
                       active
                         ? "bg-[var(--color-accent-soft)] text-[var(--color-accent-ink)] border-[var(--color-accent-rule-strong)]"
-                        : "bg-white text-[var(--color-ink-soft)] border-[var(--color-rule)] hover:text-[var(--color-ink)] hover:border-[var(--color-ink-faint)]"
+                        : "bg-[var(--color-bg-card)] text-[var(--color-ink-soft)] border-[var(--color-rule)] hover:text-[var(--color-ink)] hover:border-[var(--color-ink-faint)]"
                     }`}
                   >
                     {active ? "✓ " : ""}
@@ -1589,7 +1249,7 @@ function NewProgramModal({
       aria-labelledby="new-program-title"
     >
       <div
-        className="w-full max-w-lg bg-white rounded-2xl shadow-[var(--shadow-lifted)] border border-[var(--color-rule)] overflow-hidden"
+        className="w-full max-w-lg bg-[var(--color-bg-card)] rounded-2xl shadow-[var(--shadow-lifted)] border border-[var(--color-rule)] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between px-6 pt-6 pb-5 border-b border-[var(--color-rule)]">
@@ -1615,7 +1275,7 @@ function NewProgramModal({
 
         <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="np-name" className="text-sm font-medium">
+            <label htmlFor="np-name" className="text-[11px] tracking-[0.12em] uppercase text-[var(--color-ink-muted)] font-medium">
               Program name
             </label>
             <input
@@ -1629,8 +1289,8 @@ function NewProgramModal({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="np-desc" className="text-sm font-medium">
-              Description <span className="text-[var(--color-ink-muted)] font-normal">(optional)</span>
+            <label htmlFor="np-desc" className="text-[11px] tracking-[0.12em] uppercase text-[var(--color-ink-muted)] font-medium">
+              Description <span className="font-normal">(optional)</span>
             </label>
             <textarea
               id="np-desc"
@@ -1644,7 +1304,7 @@ function NewProgramModal({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="np-start" className="text-sm font-medium">
+              <label htmlFor="np-start" className="text-[11px] tracking-[0.12em] uppercase text-[var(--color-ink-muted)] font-medium">
                 Start date
               </label>
               <input
@@ -1652,19 +1312,19 @@ function NewProgramModal({
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="h-10 rounded-md border border-[var(--color-rule-strong)] px-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
+                className="h-10 rounded-md border border-[var(--color-rule-strong)] px-3 text-sm bg-[var(--color-bg-card)] focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="np-end" className="text-sm font-medium">
-                End date <span className="text-[var(--color-ink-muted)] font-normal">(optional)</span>
+              <label htmlFor="np-end" className="text-[11px] tracking-[0.12em] uppercase text-[var(--color-ink-muted)] font-medium">
+                End date <span className="font-normal">(optional)</span>
               </label>
               <input
                 id="np-end"
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="h-10 rounded-md border border-[var(--color-rule-strong)] px-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
+                className="h-10 rounded-md border border-[var(--color-rule-strong)] px-3 text-sm bg-[var(--color-bg-card)] focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
               />
             </div>
           </div>
@@ -1811,7 +1471,7 @@ function MembershipsPanel({
 
   function renderForm() {
     return (
-      <div className="rounded-xl p-5 mb-4 border bg-white border-[var(--color-rule)] shadow-[var(--shadow-soft)]">
+      <div className="rounded-xl p-5 mb-4 border bg-[var(--color-bg-card)] border-[var(--color-rule)] shadow-[var(--shadow-soft)]">
         <div className="flex items-center gap-2 mb-4">
           <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--color-accent-rule)]" />
           <h3 className="font-display text-base font-semibold tracking-tight">
@@ -1823,7 +1483,7 @@ function MembershipsPanel({
             <div className="flex flex-col gap-1.5">
               <label className="text-[11px] tracking-[0.12em] uppercase text-[var(--color-ink-muted)] font-medium">Name</label>
               <input
-                className="h-10 rounded-md border border-[var(--color-rule-strong)] bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
+                className="h-10 rounded-md border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
                 placeholder="e.g. Monthly Unlimited"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -1838,7 +1498,7 @@ function MembershipsPanel({
                 <input
                   inputMode="decimal"
                   placeholder="99.00"
-                  className="h-10 rounded-md border border-[var(--color-rule-strong)] bg-white pl-6 pr-3 text-sm w-full tabular-nums focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
+                  className="h-10 rounded-md border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] pl-6 pr-3 text-sm w-full tabular-nums focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
                   value={form.price}
                   onChange={(e) => {
                     const v = e.target.value;
@@ -1861,7 +1521,7 @@ function MembershipsPanel({
                   onClick={() => setForm({ ...form, type: t })}
                   className={`h-7 px-3 rounded text-xs font-medium capitalize transition-colors ${
                     form.type === t
-                      ? "bg-white text-[var(--color-ink)] shadow-sm"
+                      ? "bg-[var(--color-bg-card)] text-[var(--color-ink)] shadow-sm"
                       : "text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]"
                   }`}
                 >
@@ -1874,7 +1534,7 @@ function MembershipsPanel({
                 <input
                   inputMode="numeric"
                   placeholder="10"
-                  className="h-9 w-24 rounded-md border border-[var(--color-rule-strong)] bg-white px-3 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
+                  className="h-9 w-24 rounded-md border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
                   value={form.class_count}
                   onChange={(e) => setForm({ ...form, class_count: e.target.value })}
                 />
@@ -1979,7 +1639,7 @@ function MembershipsPanel({
       />
 
       {plans.length > 0 && (
-        <div className="grid grid-cols-3 border border-[var(--color-rule)] rounded-xl overflow-hidden mb-5 bg-white">
+        <div className="grid grid-cols-3 border border-[var(--color-rule)] rounded-xl overflow-hidden mb-5 bg-[var(--color-bg-card)]">
           <div className="px-5 py-3.5 border-r border-[var(--color-rule)]">
             <div className="text-[10px] tracking-[0.14em] uppercase text-[var(--color-ink-muted)] font-medium">Plans</div>
             <div className="font-display text-2xl font-semibold tabular-nums mt-0.5">{plans.length}</div>
@@ -2005,7 +1665,7 @@ function MembershipsPanel({
               onClick={() => setTypeFilter(t)}
               className={`h-7 px-3 rounded text-xs font-medium capitalize transition-colors flex items-center gap-1.5 ${
                 typeFilter === t
-                  ? "bg-white text-[var(--color-ink)] shadow-sm"
+                  ? "bg-[var(--color-bg-card)] text-[var(--color-ink)] shadow-sm"
                   : "text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]"
               }`}
             >
@@ -2014,7 +1674,7 @@ function MembershipsPanel({
                 className={`tabular-nums text-[10px] px-1.5 rounded-full ${
                   typeFilter === t
                     ? "bg-[var(--color-bg-soft)] text-[var(--color-ink-soft)]"
-                    : "bg-white text-[var(--color-ink-muted)]"
+                    : "bg-[var(--color-bg-card)] text-[var(--color-ink-muted)]"
                 }`}
               >
                 {typeCounts[t]}
@@ -2039,7 +1699,7 @@ function MembershipsPanel({
             <Link
               key={plan.id}
               href={`/gym/${gymId}/admin/memberships/${plan.id}/edit`}
-              className="group relative border border-[var(--color-rule)] rounded-xl p-5 bg-white hover:border-[var(--color-ink)] hover:shadow-[var(--shadow-soft)] transition-all flex flex-col"
+              className="group relative border border-[var(--color-rule)] rounded-xl p-5 bg-[var(--color-bg-card)] hover:border-[var(--color-ink)] hover:shadow-[var(--shadow-soft)] transition-all flex flex-col"
             >
               <ArrowUpRight
                 size={14}
@@ -2156,29 +1816,37 @@ function SettingsPanel({
 
       <form
         onSubmit={handleSave}
-        className="border border-[var(--color-rule)] rounded-xl p-4 flex flex-col gap-3"
+        className="border border-[var(--color-rule)] rounded-xl bg-[var(--color-bg-card)] p-5 flex flex-col gap-4"
       >
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium">Gym name</label>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[11px] tracking-[0.12em] uppercase text-[var(--color-ink-muted)] font-medium">
+            Gym name
+          </label>
           <input
-            className="h-9 rounded border border-[var(--color-rule-strong)] bg-white px-3 text-sm"
+            className="h-10 rounded-md border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
         </div>
 
-        {error && <p className="text-xs text-red-600">{error}</p>}
+        {error && (
+          <div className="rounded-md border border-red-200 bg-red-50 text-red-700 text-sm px-3 py-2">
+            {error}
+          </div>
+        )}
         {successAt && !error && (
-          <p className="text-xs text-green-700">Saved.</p>
+          <div className="rounded-md border border-[var(--color-accent-rule)] bg-[var(--color-accent-soft)] text-[var(--color-accent-ink)] text-sm px-3 py-2">
+            Settings saved.
+          </div>
         )}
 
-        <div className="flex justify-end">
+        <div className="flex justify-end pt-1">
           <button
             type="submit"
             disabled={saving || !dirty || !name.trim()}
-            className="h-9 px-3 rounded-md bg-primary text-white text-sm font-medium hover:bg-primary/90 disabled:opacity-60"
+            className="h-9 px-4 rounded-md bg-[var(--color-accent)] text-white text-sm font-medium hover:bg-[var(--color-accent-rich)] disabled:opacity-60 transition-colors"
           >
-            {saving ? "Saving..." : "Save"}
+            {saving ? "Saving…" : "Save changes"}
           </button>
         </div>
       </form>

@@ -49,7 +49,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           >
             <span className="relative inline-flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-[var(--color-accent-rich)] to-[var(--color-accent-deep)] text-white shadow-[0_1px_2px_-1px_rgba(4,120,87,0.4)]">
               <span className="text-[13px] font-semibold tracking-tight">
-                A
+                {APP_NAME.charAt(0)}
               </span>
               <span className="absolute -right-0.5 -bottom-0.5 h-1.5 w-1.5 rounded-full bg-[var(--color-accent-leaf)] ring-2 ring-[var(--color-bg-base)]" />
             </span>

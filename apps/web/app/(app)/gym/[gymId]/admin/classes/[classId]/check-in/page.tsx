@@ -43,25 +43,33 @@ export default function CheckInPage() {
     }
   }
 
-  if (loading) return <p className="text-gray-600">Loading...</p>;
+  if (loading) return <p className="text-[13px] text-[var(--color-ink-soft)]">Loading…</p>;
 
   return (
     <div className="max-w-lg">
-      <BackButton className="mb-3" />
-      <h1 className="text-3xl font-bold mb-4">Check-in</h1>
+      <BackButton className="mb-4" />
+
+      <header className="mb-6">
+        <h1 className="font-display text-2xl font-semibold tracking-tight leading-tight text-[var(--color-ink)]">
+          Check-in
+        </h1>
+        <p className="text-[13px] text-[var(--color-ink-soft)] mt-1">
+          Mark attendance for upcoming class sessions.
+        </p>
+      </header>
 
       {occurrences.length === 0 ? (
-        <p className="text-gray-600 text-center py-6">No upcoming occurrences for this class.</p>
+        <p className="text-center text-[13px] text-[var(--color-ink-muted)] py-8">No upcoming occurrences for this class.</p>
       ) : (
         <>
-          <div className="mb-4 flex flex-col gap-1">
-            <label className="text-sm font-medium">Select Session</label>
+          <div className="mb-5 flex flex-col gap-1.5">
+            <label className="text-[11px] tracking-[0.12em] uppercase text-[var(--color-ink-muted)] font-medium">Select Session</label>
             <select
               value={selectedOccurrence?.id || ""}
               onChange={(e) =>
                 setSelectedOccurrence(occurrences.find((o) => o.id === e.target.value))
               }
-              className="h-10 rounded-md border border-gray-300 px-3 text-sm bg-white"
+              className="h-10 rounded-md border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
             >
               {occurrences.map((occ) => (
                 <option key={occ.id} value={occ.id}>
@@ -77,37 +85,37 @@ export default function CheckInPage() {
           </div>
 
           {selectedOccurrence && (
-            <div className="border border-gray-200 rounded-xl p-4">
-              <h3 className="text-sm font-semibold mb-3">
+            <div className="border border-[var(--color-rule)] rounded-xl bg-[var(--color-bg-card)] p-5">
+              <h3 className="text-[13px] font-semibold text-[var(--color-ink)] mb-3">
                 Signups ({selectedOccurrence.signups?.length || 0})
               </h3>
               {selectedOccurrence.signups?.length === 0 ? (
-                <p className="text-center text-gray-600 py-6">No signups yet.</p>
+                <p className="text-center text-[13px] text-[var(--color-ink-muted)] py-8">No signups yet.</p>
               ) : (
                 <div>
                   {selectedOccurrence.signups?.map((signup: any, index: number) => (
                     <div key={signup.id}>
-                      {index > 0 && <div className="border-t border-gray-200 my-2" />}
+                      {index > 0 && <div className="border-t border-[var(--color-rule)] my-2" />}
                       <div className="flex items-center justify-between py-2">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
-                            <span className="text-xs font-bold text-gray-700">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-full bg-[var(--color-bg-soft)] ring-1 ring-[var(--color-rule)] flex items-center justify-center">
+                            <span className="text-[10px] font-semibold text-[var(--color-ink-soft)]">
                               {signup.profile?.first_name?.[0]}
                               {signup.profile?.last_name?.[0]}
                             </span>
                           </div>
-                          <span className="text-sm">
+                          <span className="text-[13px] font-medium text-[var(--color-ink)]">
                             {signup.profile?.first_name} {signup.profile?.last_name}
                           </span>
                         </div>
                         {signup.checked_in ? (
-                          <span className="px-2 py-1 rounded bg-green-100 text-green-800 text-xs">
+                          <span className="inline-flex items-center gap-1.5 h-6 px-2 rounded-full bg-[var(--color-accent-soft)] text-[var(--color-accent-ink)] text-[11px] font-medium border border-[var(--color-accent-rule)]">
                             Checked In
                           </span>
                         ) : (
                           <button
                             onClick={() => handleCheckIn(signup.id)}
-                            className="h-8 px-3 rounded bg-primary text-white text-sm font-medium hover:bg-primary/90"
+                            className="h-8 px-3 rounded-md bg-[var(--color-accent)] text-white text-[12px] font-medium hover:bg-[var(--color-accent-rich)] transition-colors"
                           >
                             Check In
                           </button>

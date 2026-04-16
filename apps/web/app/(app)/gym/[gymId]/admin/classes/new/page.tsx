@@ -83,26 +83,26 @@ export default function ManageClassesPage() {
     }
   }
 
-  if (loading) return <p className="text-gray-600">Loading...</p>;
+  if (loading) return <p className="text-[var(--color-ink-soft)]">Loading...</p>;
 
   return (
     <div className="max-w-2xl">
       <BackButton href={`/gym/${gymId}`} label="Gym" className="mb-3" />
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-3xl font-bold">Manage Classes</h1>
+        <h1 className="font-display text-2xl font-semibold tracking-tight leading-tight text-[var(--color-ink)]">Manage Classes</h1>
         <div className="flex gap-2">
           <button
             onClick={handleGenerateOccurrences}
-            className="h-9 px-3 rounded-md border border-gray-300 text-sm font-medium hover:bg-gray-50"
+            className="h-9 px-3 rounded-md border border-[var(--color-rule-strong)] text-[11px] tracking-[0.12em] uppercase text-[var(--color-ink-muted)] font-medium hover:bg-[var(--color-bg-soft)]"
           >
             Generate Schedule
           </button>
           <button
             onClick={() => setShowForm(!showForm)}
-            className={`h-9 px-3 rounded-md text-sm font-medium ${
+            className={`h-9 px-3 rounded-md text-[11px] tracking-[0.12em] uppercase font-medium ${
               showForm
-                ? "border border-gray-300 hover:bg-gray-50"
-                : "bg-primary text-white hover:bg-primary/90"
+                ? "border border-[var(--color-rule-strong)] hover:bg-[var(--color-bg-soft)]"
+                : "bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-rich)]"
             }`}
           >
             {showForm ? "Cancel" : "New Class"}
@@ -111,53 +111,53 @@ export default function ManageClassesPage() {
       </div>
 
       {showForm && (
-        <div className="mb-4 p-4 border border-gray-200 rounded-xl">
+        <div className="mb-4 p-4 border border-[var(--color-rule)] rounded-xl">
           <h3 className="text-lg font-semibold mb-3">Create Class</h3>
           <form onSubmit={handleCreate} className="flex flex-col gap-3">
             <div className="flex flex-col gap-1">
-              <label htmlFor="class-name" className="text-sm font-medium">Class Name</label>
+              <label htmlFor="class-name" className="text-[11px] tracking-[0.12em] uppercase text-[var(--color-ink-muted)] font-medium">Class Name</label>
               <input
                 id="class-name"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="h-10 rounded-md border border-gray-300 px-3 text-sm"
+                className="h-10 rounded-md border border-[var(--color-rule-strong)] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label htmlFor="class-desc" className="text-sm font-medium">Description</label>
+              <label htmlFor="class-desc" className="text-[11px] tracking-[0.12em] uppercase text-[var(--color-ink-muted)] font-medium">Description</label>
               <input
                 id="class-desc"
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
-                className="h-10 rounded-md border border-gray-300 px-3 text-sm"
+                className="h-10 rounded-md border border-[var(--color-rule-strong)] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-1">
-                <label htmlFor="class-capacity" className="text-sm font-medium">Capacity (empty = unlimited)</label>
+                <label htmlFor="class-capacity" className="text-[11px] tracking-[0.12em] uppercase text-[var(--color-ink-muted)] font-medium">Capacity (empty = unlimited)</label>
                 <input
                   id="class-capacity"
                   inputMode="numeric"
                   value={form.capacity}
                   onChange={(e) => setForm({ ...form, capacity: e.target.value })}
-                  className="h-10 rounded-md border border-gray-300 px-3 text-sm"
+                  className="h-10 rounded-md border border-[var(--color-rule-strong)] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label htmlFor="class-duration" className="text-sm font-medium">Duration (minutes)</label>
+                <label htmlFor="class-duration" className="text-[11px] tracking-[0.12em] uppercase text-[var(--color-ink-muted)] font-medium">Duration (minutes)</label>
                 <input
                   id="class-duration"
                   inputMode="numeric"
                   value={form.duration_minutes}
                   onChange={(e) => setForm({ ...form, duration_minutes: e.target.value })}
-                  className="h-10 rounded-md border border-gray-300 px-3 text-sm"
+                  className="h-10 rounded-md border border-[var(--color-rule-strong)] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
                 />
               </div>
             </div>
             <button
               type="submit"
               disabled={saving}
-              className="h-10 rounded-md bg-primary text-white text-sm font-medium hover:bg-primary/90 disabled:opacity-70"
+              className="h-10 rounded-md bg-[var(--color-accent)] text-white text-[11px] tracking-[0.12em] uppercase font-medium hover:bg-[var(--color-accent-rich)] disabled:opacity-70"
             >
               {saving ? "Creating..." : "Create Class"}
             </button>
@@ -167,11 +167,11 @@ export default function ManageClassesPage() {
 
       <div className="flex flex-col gap-2">
         {classes.map((cls) => (
-          <div key={cls.id} className="border border-gray-200 rounded-lg p-3">
+          <div key={cls.id} className="border border-[var(--color-rule)] rounded-lg p-3">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-base font-semibold">{cls.name}</h3>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-[var(--color-ink-soft)]">
                   {cls.duration_minutes}min
                   {cls.capacity && ` · ${cls.capacity} spots`}
                   {cls.default_coach && ` · Coach: ${cls.default_coach.first_name} ${cls.default_coach.last_name}`}
@@ -180,19 +180,19 @@ export default function ManageClassesPage() {
               <div className="flex gap-2">
                 <Link
                   href={`/gym/${gymId}/admin/classes/${cls.id}/edit`}
-                  className="h-8 px-2 inline-flex items-center rounded text-sm text-gray-700 hover:bg-gray-100 no-underline"
+                  className="h-8 px-2 inline-flex items-center rounded text-sm text-[var(--color-ink)] hover:bg-[var(--color-bg-soft)] no-underline"
                 >
                   Schedule
                 </Link>
                 <Link
                   href={`/gym/${gymId}/admin/classes/${cls.id}/check-in`}
-                  className="h-8 px-2 inline-flex items-center rounded text-sm text-gray-700 hover:bg-gray-100 no-underline"
+                  className="h-8 px-2 inline-flex items-center rounded text-sm text-[var(--color-ink)] hover:bg-[var(--color-bg-soft)] no-underline"
                 >
                   Check-in
                 </Link>
                 <button
                   onClick={() => handleDelete(cls.id)}
-                  className="h-8 px-2 rounded text-sm text-gray-700 hover:bg-gray-100"
+                  className="h-8 px-2 rounded text-sm text-[var(--color-ink)] hover:bg-[var(--color-bg-soft)]"
                 >
                   Delete
                 </button>
@@ -201,7 +201,7 @@ export default function ManageClassesPage() {
           </div>
         ))}
         {classes.length === 0 && (
-          <p className="text-center text-gray-600 py-6">No classes created yet.</p>
+          <p className="text-center text-[var(--color-ink-soft)] py-6">No classes created yet.</p>
         )}
       </div>
     </div>

@@ -170,9 +170,6 @@ export function AnnouncementsPanel({
     <section>
       <header className="flex items-start justify-between gap-4 mb-6">
         <div className="min-w-0">
-          <p className="text-[11px] font-medium tracking-[0.14em] uppercase text-[var(--color-accent)] mb-1">
-            Broadcasts
-          </p>
           <h2 className="text-[20px] font-semibold leading-tight tracking-tight text-[var(--color-ink)]">
             Announcements
           </h2>
@@ -517,7 +514,7 @@ function AnnouncementComposer({
         <div className="flex flex-col gap-1.5">
           <label
             htmlFor="announcement-title"
-            className="text-[11.5px] font-medium text-[var(--color-ink-soft)] uppercase tracking-wide"
+            className="text-[11px] tracking-[0.12em] uppercase text-[var(--color-ink-muted)] font-medium"
           >
             Title
           </label>
@@ -534,7 +531,7 @@ function AnnouncementComposer({
         <div className="flex flex-col gap-1.5">
           <label
             htmlFor="announcement-body"
-            className="text-[11.5px] font-medium text-[var(--color-ink-soft)] uppercase tracking-wide"
+            className="text-[11px] tracking-[0.12em] uppercase text-[var(--color-ink-muted)] font-medium"
           >
             Message
           </label>
@@ -553,7 +550,7 @@ function AnnouncementComposer({
         </div>
 
         <div className="flex flex-col gap-2">
-          <span className="text-[11.5px] font-medium text-[var(--color-ink-soft)] uppercase tracking-wide">
+          <span className="text-[11px] tracking-[0.12em] uppercase text-[var(--color-ink-muted)] font-medium">
             Audience
           </span>
           <div className="inline-flex p-0.5 rounded-md border border-[var(--color-rule-strong)] bg-[var(--color-bg-soft)] self-start">

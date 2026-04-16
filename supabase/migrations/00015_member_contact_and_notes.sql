@@ -13,7 +13,10 @@ UPDATE profiles p
 
 -- Keep profile email synced on new signups.
 CREATE OR REPLACE FUNCTION handle_new_user()
-RETURNS trigger AS $$
+RETURNS trigger
+SECURITY DEFINER
+SET search_path = public
+AS $$
 BEGIN
   INSERT INTO profiles (id, first_name, last_name, email)
   VALUES (
@@ -24,4 +27,4 @@ BEGIN
   );
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql;

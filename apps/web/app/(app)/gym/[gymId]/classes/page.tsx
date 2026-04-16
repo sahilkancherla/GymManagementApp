@@ -47,7 +47,7 @@ export default function ClassesPage() {
     }
   }
 
-  if (loading) return <p className="text-gray-600">Loading...</p>;
+  if (loading) return <p className="text-[var(--color-ink-soft)]">Loading...</p>;
 
   const grouped = occurrences.reduce((acc: Record<string, any[]>, occ) => {
     const date = occ.date;
@@ -59,16 +59,16 @@ export default function ClassesPage() {
   return (
     <div>
       <BackButton href={`/gym/${gymId}`} label="Gym" className="mb-3" />
-      <h1 className="text-2xl font-bold mb-5">Class Schedule</h1>
+      <h1 className="font-display text-2xl font-semibold tracking-tight leading-tight text-[var(--color-ink)] mb-5">Class Schedule</h1>
 
       {Object.keys(grouped).length === 0 ? (
-        <p className="text-gray-600 text-center py-10">No classes scheduled this week.</p>
+        <p className="text-[var(--color-ink-soft)] text-center py-10">No classes scheduled this week.</p>
       ) : (
         Object.entries(grouped)
           .sort(([a], [b]) => a.localeCompare(b))
           .map(([date, occs]) => (
             <div key={date} className="mb-5">
-              <h2 className="text-sm text-gray-600 mb-3">
+              <h2 className="text-sm text-[var(--color-ink-soft)] mb-3">
                 {new Date(date + "T00:00:00").toLocaleDateString("en-US", {
                   weekday: "long",
                   month: "short",
@@ -76,10 +76,12 @@ export default function ClassesPage() {
                 })}
               </h2>
               <div className="flex flex-col gap-2">
-                {(occs as any[]).map((occ) => (
+                {(occs as any[])
+                  .sort((a, b) => (a.start_time || "").localeCompare(b.start_time || ""))
+                  .map((occ) => (
                   <div
                     key={occ.id}
-                    className={`border border-gray-200 rounded-xl p-4 ${occ.is_cancelled ? "opacity-50" : ""}`}
+                    className={`border border-[var(--color-rule)] rounded-xl p-4 ${occ.is_cancelled ? "opacity-50" : ""}`}
                   >
                     <div className="flex items-center justify-between py-2">
                       <div>
@@ -91,11 +93,11 @@ export default function ClassesPage() {
                             </span>
                           )}
                         </div>
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-[var(--color-ink-soft)]">
                           {formatUtcTime(occ.start_time, occ.date)} · {occ.class?.duration_minutes}min
                           {occ.coach && ` · ${occ.coach.first_name} ${occ.coach.last_name}`}
                         </p>
-                        <span className="inline-block mt-1 px-2 py-1 rounded bg-gray-100 text-xs">
+                        <span className="inline-block mt-1 px-2 py-1 rounded bg-[var(--color-bg-soft)] text-xs">
                           {occ.signups?.length || 0}
                           {occ.class?.capacity ? ` / ${occ.class.capacity}` : ""} signed up
                         </span>
@@ -105,14 +107,14 @@ export default function ClassesPage() {
                           {occ.signups?.some((s: any) => s.user_id) ? (
                             <button
                               onClick={() => handleCancelSignup(occ.id)}
-                              className="h-9 px-3 rounded-md text-sm text-gray-700 hover:bg-gray-100"
+                              className="h-9 px-3 rounded-md text-sm text-[var(--color-ink)] hover:bg-[var(--color-bg-soft)]"
                             >
                               Cancel
                             </button>
                           ) : (
                             <button
                               onClick={() => handleSignup(occ.id)}
-                              className="h-9 px-3 rounded-md bg-primary text-white text-sm font-medium hover:bg-primary/90"
+                              className="h-9 px-3 rounded-md bg-[var(--color-accent)] text-white text-sm font-medium hover:bg-[var(--color-accent-rich)]"
                             >
                               Sign Up
                             </button>

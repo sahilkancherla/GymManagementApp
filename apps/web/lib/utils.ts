@@ -33,74 +33,83 @@ function formatLocal(d: Date): string {
   return m === 0 ? `${h12} ${suffix}` : `${h12}:${pad(m)} ${suffix}`;
 }
 
-// Format a UTC HH:MM:SS time as the user's local clock time.
-// Pass `date` (YYYY-MM-DD) when the time is tied to a specific day so DST is
-// applied correctly; otherwise today's date is used as a reference.
+// Format a HH:MM:SS time string for display (e.g. "9:00 AM").
+// Times are stored as local time, so no UTC conversion needed.
 export function formatUtcTime(
   hhmmss: string | null | undefined,
-  date?: string,
+  _date?: string,
 ): string {
   if (!hhmmss) return "";
-  return formatLocal(utcTimeToLocalDate(date || todayIsoLocal(), hhmmss));
+  const parts = hhmmss.split(":");
+  const h = parseInt(parts[0] || "0", 10);
+  const m = parseInt(parts[1] || "0", 10);
+  const suffix = h >= 12 ? "PM" : "AM";
+  const h12 = ((h + 11) % 12) + 1;
+  return m === 0 ? `${h12} ${suffix}` : `${h12}:${pad(m)} ${suffix}`;
 }
 
-// Format a UTC HH:MM:SS plus an offset in minutes as local clock time.
+// Format a HH:MM:SS plus an offset in minutes for display.
 export function formatUtcTimePlusMinutes(
   hhmmss: string | null | undefined,
   minutes: number,
-  date?: string,
+  _date?: string,
 ): string {
   if (!hhmmss) return "";
-  const d = utcTimeToLocalDate(date || todayIsoLocal(), hhmmss);
-  d.setMinutes(d.getMinutes() + (minutes || 0));
-  return formatLocal(d);
+  const parts = hhmmss.split(":");
+  let h = parseInt(parts[0] || "0", 10);
+  let m = parseInt(parts[1] || "0", 10);
+  m += minutes || 0;
+  h += Math.floor(m / 60);
+  m = m % 60;
+  h = h % 24;
+  const suffix = h >= 12 ? "PM" : "AM";
+  const h12 = ((h + 11) % 12) + 1;
+  return m === 0 ? `${h12} ${suffix}` : `${h12}:${pad(m)} ${suffix}`;
 }
 
-// Convert a UTC HH:MM:SS to a local HH:MM string suitable for
-// `<input type="time">`. Uses today's date as a reference for DST.
+// Convert a HH:MM:SS to HH:MM string suitable for `<input type="time">`.
+// Times are stored as local time so no conversion needed.
 export function utcHHMMSSToLocalHHMM(
   hhmmss: string | null | undefined,
-  date?: string,
+  _date?: string,
 ): string {
   if (!hhmmss) return "";
-  const d = utcTimeToLocalDate(date || todayIsoLocal(), hhmmss);
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const parts = hhmmss.split(":");
+  return `${pad(parseInt(parts[0] || "0", 10))}:${pad(parseInt(parts[1] || "0", 10))}`;
 }
 
-// Convert a local HH:MM (from `<input type="time">`) to a UTC HH:MM:SS.
-// `date` should be the date the time will apply on (when known) so DST is
-// handled correctly.
+// Convert a local HH:MM (from `<input type="time">`) to HH:MM:SS for storage.
+// Times are stored as local time (not converted to UTC) because schedule times
+// represent "this class is at 9 AM" in the gym's local timezone, not an
+// absolute UTC instant. Converting to UTC breaks day boundaries.
 export function localHHMMToUtcHHMMSS(
   hhmm: string,
-  date?: string,
+  _date?: string,
 ): string {
   if (!hhmm) return hhmm;
   const [hStr, mStr] = hhmm.split(":");
-  const ref = date || todayIsoLocal();
-  const [yyyy, mm, dd] = ref.split("-").map((p) => parseInt(p, 10));
-  const local = new Date(
-    yyyy,
-    (mm || 1) - 1,
-    dd || 1,
-    parseInt(hStr || "0", 10),
-    parseInt(mStr || "0", 10),
-    0,
-  );
-  return `${pad(local.getUTCHours())}:${pad(local.getUTCMinutes())}:${pad(
-    local.getUTCSeconds(),
-  )}`;
+  return `${pad(parseInt(hStr || "0", 10))}:${pad(parseInt(mStr || "0", 10))}:00`;
 }
 
 // Returns true if the class occurrence is in the past (start + duration has elapsed).
 // Returns false when start_time is missing (no end reference).
+// Times are stored as local time, so we build a local Date directly.
 export function isClassCompleted(
   date: string | null | undefined,
   hhmmss: string | null | undefined,
   durationMinutes: number | null | undefined,
 ): boolean {
   if (!date || !hhmmss) return false;
-  const end = utcTimeToLocalDate(date, hhmmss);
-  end.setMinutes(end.getMinutes() + (durationMinutes || 0));
+  const parts = hhmmss.split(":");
+  const [yyyy, mm, dd] = date.split("-").map((p) => parseInt(p, 10));
+  const end = new Date(
+    yyyy,
+    (mm || 1) - 1,
+    dd || 1,
+    parseInt(parts[0] || "0", 10),
+    parseInt(parts[1] || "0", 10) + (durationMinutes || 0),
+    0,
+  );
   return end.getTime() < Date.now();
 }
 

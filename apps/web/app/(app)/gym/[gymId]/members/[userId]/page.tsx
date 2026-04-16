@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
-  ArrowLeft,
   CalendarDays,
   Check,
   ChevronDown,
@@ -21,8 +20,9 @@ import {
   User,
   X,
 } from "lucide-react";
-import Link from "next/link";
+
 import { apiFetch } from "@/lib/api";
+import { BackButton } from "@/components/BackButton";
 import {
   StatusToggle,
   MemberProgramEnrollments,
@@ -144,13 +144,7 @@ export default function MemberDetailPage() {
   if (notFound || !member) {
     return (
       <div>
-        <Link
-          href={`/gym/${gymId}?tab=members`}
-          className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-[var(--color-ink-soft)] hover:text-[var(--color-ink)] mb-4 no-underline"
-        >
-          <ArrowLeft size={13} strokeWidth={1.9} />
-          Back to members
-        </Link>
+        <BackButton href={`/gym/${gymId}?tab=members`} label="Members" className="mb-4" />
         <p className="text-[13px] text-[var(--color-ink-soft)]">
           Member not found.
         </p>
@@ -174,37 +168,33 @@ export default function MemberDetailPage() {
   const genderLabel = formatGender(member.profile?.gender);
 
   return (
-    <div className="space-y-8">
-      {/* Back link */}
-      <Link
-        href={`/gym/${gymId}?tab=members`}
-        className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-[var(--color-ink-soft)] hover:text-[var(--color-ink)] no-underline"
-      >
-        <ArrowLeft size={13} strokeWidth={1.9} />
-        Back to members
-      </Link>
+    <div>
+      <div className="mb-4">
+        <BackButton href={`/gym/${gymId}?tab=members`} label="Members" />
+      </div>
 
-      {/* Hero card */}
-      <section className="relative rounded-xl border border-[var(--color-rule)] bg-[var(--color-bg-card)] overflow-hidden">
-        <div className="absolute inset-x-0 top-0 h-28 bg-grid-fade opacity-40 pointer-events-none" />
-        <div className="relative px-6 pt-7 pb-6 flex items-start gap-5">
-          <div className="w-16 h-16 rounded-full bg-[var(--color-ink)] text-white flex items-center justify-center overflow-hidden shrink-0 shadow-[var(--shadow-soft)] ring-4 ring-[var(--color-bg-card)]">
-            {member.profile?.avatar_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={member.profile.avatar_url}
-                alt=""
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <span className="text-[17px] font-semibold">
-                {initials || "?"}
-              </span>
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
+      {editOpen ? (
+        <EditMemberInlineForm
+          gymId={gymId}
+          userId={userId}
+          initial={{
+            first_name: member.profile?.first_name || "",
+            last_name: member.profile?.last_name || "",
+            gender: member.profile?.gender || null,
+            email: member.profile?.email || "",
+            phone: member.profile?.phone || "",
+          }}
+          onCancel={() => setEditOpen(false)}
+          onSaved={async () => {
+            setEditOpen(false);
+            await load();
+          }}
+        />
+      ) : (
+        <section className="flex items-start justify-between gap-4 mb-6">
+          <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="font-display text-[26px] leading-tight font-semibold tracking-tight text-[var(--color-ink)]">
+              <h1 className="font-display text-2xl font-semibold tracking-tight leading-tight">
                 {fullName || "Unnamed member"}
               </h1>
               <span
@@ -223,85 +213,49 @@ export default function MemberDetailPage() {
                 />
                 {isActive ? "Active" : "Inactive"}
               </span>
+              <button
+                onClick={() => setEditOpen(true)}
+                className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md border border-[var(--color-rule)] text-xs font-medium text-[var(--color-ink-soft)] hover:text-[var(--color-ink)] hover:border-[var(--color-ink)] transition-colors"
+              >
+                <Pencil size={12} strokeWidth={1.75} />
+                Edit
+              </button>
             </div>
-            <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[12.5px] text-[var(--color-ink-soft)]">
+            <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[13px] text-[var(--color-ink-soft)]">
               <span className="inline-flex items-center gap-1.5">
-                <Mail
-                  size={12}
-                  strokeWidth={1.8}
-                  className="text-[var(--color-ink-muted)]"
-                />
+                <Mail size={12} strokeWidth={1.8} className="text-[var(--color-ink-muted)]" />
                 {member.profile?.email || member.email || "—"}
               </span>
               <span className="inline-flex items-center gap-1.5">
-                <Phone
-                  size={12}
-                  strokeWidth={1.8}
-                  className="text-[var(--color-ink-muted)]"
-                />
+                <Phone size={12} strokeWidth={1.8} className="text-[var(--color-ink-muted)]" />
                 {member.profile?.phone || member.phone || "—"}
               </span>
               {genderLabel && (
                 <span className="inline-flex items-center gap-1.5">
-                  <User
-                    size={12}
-                    strokeWidth={1.8}
-                    className="text-[var(--color-ink-muted)]"
-                  />
+                  <User size={12} strokeWidth={1.8} className="text-[var(--color-ink-muted)]" />
                   {genderLabel}
                 </span>
               )}
-              {member.created_at && (
-                <span className="inline-flex items-center gap-1.5">
-                  <CalendarDays
-                    size={12}
-                    strokeWidth={1.8}
-                    className="text-[var(--color-ink-muted)]"
-                  />
-                  Joined{" "}
-                  {new Date(member.created_at).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
-                </span>
-              )}
             </div>
+            {member.created_at && (
+              <div className="mt-3 inline-flex items-center gap-1.5 text-[11.5px] text-[var(--color-ink-muted)] tabular-nums">
+                <CalendarDays size={12} strokeWidth={1.75} />
+                Joined{" "}
+                {new Date(member.created_at).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              </div>
+            )}
           </div>
-          <button
-            type="button"
-            onClick={() => setEditOpen(true)}
-            className="shrink-0 inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-[var(--color-rule)] bg-white text-[12.5px] font-medium text-[var(--color-ink-soft)] hover:text-[var(--color-ink)] hover:border-[var(--color-ink-faint)] transition-colors"
-          >
-            <Pencil size={12} strokeWidth={1.9} />
-            Edit details
-          </button>
-        </div>
-      </section>
-
-      {editOpen && (
-        <EditMemberProfileDialog
-          gymId={gymId}
-          userId={userId}
-          initial={{
-            first_name: member.profile?.first_name || "",
-            last_name: member.profile?.last_name || "",
-            gender: member.profile?.gender || null,
-            email: member.profile?.email || "",
-            phone: member.profile?.phone || "",
-          }}
-          onClose={() => setEditOpen(false)}
-          onSaved={async () => {
-            setEditOpen(false);
-            await load();
-          }}
-        />
+        </section>
       )}
 
       {/* Tabs */}
       <div
         role="tablist"
-        className="border-b border-[var(--color-rule)] flex gap-1 -mt-2"
+        className="border-b border-[var(--color-rule)] flex gap-1 mb-6"
       >
         {(
           [
@@ -406,9 +360,7 @@ export default function MemberDetailPage() {
                     onClick={() => handleToggleRole(r.key, hasRole)}
                     className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-[12px] font-medium border transition-colors ${
                       hasRole
-                        ? r.key === "admin"
-                          ? "bg-[var(--color-accent-soft)] text-[var(--color-accent-ink)] border-[var(--color-accent-rule)]"
-                          : "bg-[var(--color-ink)] text-white border-[var(--color-ink)]"
+                        ? "bg-[var(--color-bg-soft)] text-[var(--color-ink)] border-[var(--color-rule-strong)]"
                         : "bg-[var(--color-bg-card)] text-[var(--color-ink-soft)] border-[var(--color-rule)] hover:text-[var(--color-ink)] hover:border-[var(--color-rule-strong)]"
                     }`}
                   >
@@ -542,7 +494,7 @@ function MemberNotesCard({
         onChange={(e) => setNotes(e.target.value)}
         placeholder="Add context, preferences, injury history, or follow-ups…"
         rows={4}
-        className="w-full rounded-md border border-[var(--color-rule-strong)] bg-white px-3 py-2 text-sm leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
+        className="w-full rounded-md border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 py-2 text-sm leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
       />
       {error && (
         <div className="mt-2 rounded-md border border-red-200 bg-red-50 text-red-700 text-sm px-3 py-2">
@@ -806,7 +758,7 @@ function ProgramHistoryCard({
                   type="button"
                   onClick={() => setPage((p) => Math.max(0, p - 1))}
                   disabled={safePage === 0}
-                  className="h-7 px-2.5 rounded-md border border-[var(--color-rule)] bg-white text-[12px] font-medium text-[var(--color-ink-soft)] hover:text-[var(--color-ink)] hover:border-[var(--color-ink-faint)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="h-7 px-2.5 rounded-md border border-[var(--color-rule)] bg-[var(--color-bg-card)] text-[12px] font-medium text-[var(--color-ink-soft)] hover:text-[var(--color-ink)] hover:border-[var(--color-ink-faint)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   Prev
                 </button>
@@ -817,7 +769,7 @@ function ProgramHistoryCard({
                   type="button"
                   onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
                   disabled={safePage >= pageCount - 1}
-                  className="h-7 px-2.5 rounded-md border border-[var(--color-rule)] bg-white text-[12px] font-medium text-[var(--color-ink-soft)] hover:text-[var(--color-ink)] hover:border-[var(--color-ink-faint)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="h-7 px-2.5 rounded-md border border-[var(--color-rule)] bg-[var(--color-bg-card)] text-[12px] font-medium text-[var(--color-ink-soft)] hover:text-[var(--color-ink)] hover:border-[var(--color-ink-faint)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   Next
                 </button>
@@ -956,19 +908,36 @@ function FormatBadge({ format }: { format: string }) {
   );
 }
 
+function RxScaledBadge({ value }: { value?: string | null }) {
+  if (!value) return null;
+  return (
+    <span
+      className={`inline-flex items-center h-4 px-1.5 rounded text-[9.5px] font-semibold uppercase ${
+        value === "rx"
+          ? "bg-[var(--color-accent-soft)] text-[var(--color-accent-ink)]"
+          : "bg-[var(--color-bg-soft)] text-[var(--color-ink-soft)]"
+      }`}
+    >
+      {value === "rx" ? "Rx" : "Scaled"}
+    </span>
+  );
+}
+
 function ResultCell({ row }: { row: WorkoutStatRow }) {
   const format = row.workout?.format;
+  const rxBadge = <RxScaledBadge value={(row as any).rx_scaled} />;
   if (format === "time" && row.time_seconds != null) {
     const m = Math.floor(row.time_seconds / 60);
     const s = row.time_seconds % 60;
     return (
-      <div className="inline-flex items-baseline gap-1 tabular-nums">
+      <div className="inline-flex items-center gap-1.5 tabular-nums">
         <span className="text-[14px] font-semibold text-[var(--color-ink)]">
           {m}:{String(s).padStart(2, "0")}
         </span>
         <span className="text-[10.5px] text-[var(--color-ink-muted)]">
           min
         </span>
+        {rxBadge}
       </div>
     );
   }
@@ -976,7 +945,7 @@ function ResultCell({ row }: { row: WorkoutStatRow }) {
     const rounds = row.amrap_rounds ?? 0;
     const reps = row.amrap_reps ?? 0;
     return (
-      <div className="inline-flex items-baseline gap-1.5 tabular-nums">
+      <div className="inline-flex items-center gap-1.5 tabular-nums">
         <span className="text-[14px] font-semibold text-[var(--color-ink)]">
           {rounds}
         </span>
@@ -994,6 +963,7 @@ function ResultCell({ row }: { row: WorkoutStatRow }) {
             </span>
           </>
         )}
+        {rxBadge}
       </div>
     );
   }
@@ -1090,7 +1060,7 @@ function MembershipsTab({
     return (
       <div
         key={sub.id}
-        className="border border-[var(--color-rule)] rounded-xl p-5 bg-white"
+        className="border border-[var(--color-rule)] rounded-xl p-5 bg-[var(--color-bg-card)]"
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
@@ -1185,7 +1155,7 @@ function MembershipsTab({
       </div>
 
       {assignOpen && (
-        <div className="rounded-xl border border-[var(--color-rule)] bg-white p-5 shadow-[var(--shadow-soft)]">
+        <div className="rounded-xl border border-[var(--color-rule)] bg-[var(--color-bg-card)] p-5 shadow-[var(--shadow-soft)]">
           <div className="flex items-start justify-between gap-3 mb-4">
             <div className="flex items-center gap-2">
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--color-accent-rule)]" />
@@ -1343,13 +1313,13 @@ function formatGender(g: string | null | undefined): string {
   return match ? match.label : "";
 }
 
-/* -------------------- Edit profile dialog -------------------- */
+/* -------------------- Edit member inline form -------------------- */
 
-function EditMemberProfileDialog({
+function EditMemberInlineForm({
   gymId,
   userId,
   initial,
-  onClose,
+  onCancel,
   onSaved,
 }: {
   gymId: string;
@@ -1357,16 +1327,11 @@ function EditMemberProfileDialog({
   initial: {
     first_name: string;
     last_name: string;
-    gender:
-      | "male"
-      | "female"
-      | "other"
-      | "prefer_not_to_say"
-      | null;
+    gender: "male" | "female" | "other" | "prefer_not_to_say" | null;
     email: string;
     phone: string;
   };
-  onClose: () => void;
+  onCancel: () => void;
   onSaved: () => void | Promise<void>;
 }) {
   const [firstName, setFirstName] = useState(initial.first_name);
@@ -1379,16 +1344,7 @@ function EditMemberProfileDialog({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleSubmit() {
     if (saving) return;
     if (!firstName.trim() || !lastName.trim()) {
       setError("First and last name are required.");
@@ -1415,82 +1371,57 @@ function EditMemberProfileDialog({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[rgba(10,10,10,0.45)] backdrop-blur-sm"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="edit-member-title"
-    >
-      <div
-        className="w-full max-w-md bg-white rounded-2xl shadow-[var(--shadow-lifted)] border border-[var(--color-rule)] overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start justify-between px-6 pt-6 pb-5 border-b border-[var(--color-rule)]">
-          <div>
-            <div className="text-[10px] tracking-[0.14em] uppercase text-[var(--color-accent)] font-medium mb-1">
-              Edit member
-            </div>
-            <h3
-              id="edit-member-title"
-              className="font-display text-2xl font-semibold tracking-tight leading-tight"
-            >
-              Member details
-            </h3>
-          </div>
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            className="h-8 w-8 rounded-md border border-[var(--color-rule)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] hover:border-[var(--color-ink)] flex items-center justify-center transition-colors"
-          >
-            ×
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="em-first" className="text-sm font-medium">
-                First name
-              </label>
-              <input
-                id="em-first"
-                type="text"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                className="h-10 rounded-md border border-[var(--color-rule-strong)] bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="em-last" className="text-sm font-medium">
-                Last name
-              </label>
-              <input
-                id="em-last"
-                type="text"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                className="h-10 rounded-md border border-[var(--color-rule-strong)] bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
-              />
-            </div>
-          </div>
-
+    <section className="rounded-xl border border-[var(--color-accent-rule)] bg-[var(--color-bg-card)] shadow-[var(--shadow-soft)] p-6 mb-6">
+      <div className="flex items-center gap-2 mb-5">
+        <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--color-accent-rule)]" />
+        <h2 className="font-display text-base font-semibold tracking-tight">
+          Edit member
+        </h2>
+      </div>
+      <div className="flex flex-col gap-4">
+        <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="em-email" className="text-sm font-medium">
-              Email
+            <label htmlFor="em-first" className="text-[11px] tracking-[0.12em] uppercase text-[var(--color-ink-muted)] font-medium">
+              First name
             </label>
             <input
-              id="em-email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="name@example.com"
-              className="h-10 rounded-md border border-[var(--color-rule-strong)] bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
+              id="em-first"
+              type="text"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              className="h-10 rounded-md border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
             />
           </div>
-
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="em-phone" className="text-sm font-medium">
+            <label htmlFor="em-last" className="text-[11px] tracking-[0.12em] uppercase text-[var(--color-ink-muted)] font-medium">
+              Last name
+            </label>
+            <input
+              id="em-last"
+              type="text"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              className="h-10 rounded-md border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="em-email" className="text-[11px] tracking-[0.12em] uppercase text-[var(--color-ink-muted)] font-medium">
+            Email
+          </label>
+          <input
+            id="em-email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="name@example.com"
+            className="h-10 rounded-md border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
+          />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="em-phone" className="text-[11px] tracking-[0.12em] uppercase text-[var(--color-ink-muted)] font-medium">
               Phone
             </label>
             <input
@@ -1499,70 +1430,70 @@ function EditMemberProfileDialog({
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="+1 555 555 5555"
-              className="h-10 rounded-md border border-[var(--color-rule-strong)] bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
+              className="h-10 rounded-md border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
             />
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium">Gender</label>
-            <div className="flex flex-wrap gap-1.5">
-              <button
-                type="button"
-                onClick={() => setGender(null)}
-                aria-pressed={gender === null}
-                className={`h-8 px-3 rounded-full text-[13px] font-medium border transition-colors ${
-                  gender === null
-                    ? "bg-[var(--color-accent-soft)] text-[var(--color-accent-ink)] border-[var(--color-accent-rule-strong)]"
-                    : "bg-white text-[var(--color-ink-soft)] border-[var(--color-rule)] hover:text-[var(--color-ink)] hover:border-[var(--color-ink-faint)]"
-                }`}
-              >
-                Unset
-              </button>
-              {GENDER_OPTIONS.map((o) => {
-                const active = gender === o.value;
-                return (
-                  <button
-                    key={o.value}
-                    type="button"
-                    onClick={() => setGender(o.value)}
-                    aria-pressed={active}
-                    className={`h-8 px-3 rounded-full text-[13px] font-medium border transition-colors ${
-                      active
-                        ? "bg-[var(--color-accent-soft)] text-[var(--color-accent-ink)] border-[var(--color-accent-rule-strong)]"
-                        : "bg-white text-[var(--color-ink-soft)] border-[var(--color-rule)] hover:text-[var(--color-ink)] hover:border-[var(--color-ink-faint)]"
-                    }`}
-                  >
-                    {o.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {error && (
-            <div className="rounded-md border border-red-200 bg-red-50 text-red-700 text-sm px-3 py-2">
-              {error}
-            </div>
-          )}
-
-          <div className="flex justify-end gap-2 pt-2">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[11px] tracking-[0.12em] uppercase text-[var(--color-ink-muted)] font-medium">Gender</label>
+          <div className="flex flex-wrap gap-1.5">
             <button
               type="button"
-              onClick={onClose}
-              className="h-9 px-3 rounded-md text-sm text-[var(--color-ink-soft)] hover:bg-[var(--color-bg-soft)]"
+              onClick={() => setGender(null)}
+              aria-pressed={gender === null}
+              className={`h-8 px-3 rounded-full text-[13px] font-medium border transition-colors ${
+                gender === null
+                  ? "bg-[var(--color-accent-soft)] text-[var(--color-accent-ink)] border-[var(--color-accent-rule-strong)]"
+                  : "bg-[var(--color-bg-card)] text-[var(--color-ink-soft)] border-[var(--color-rule)] hover:text-[var(--color-ink)] hover:border-[var(--color-ink-faint)]"
+              }`}
             >
-              Cancel
+              Unset
             </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="h-9 px-4 rounded-md bg-[var(--color-accent)] text-white text-sm font-medium hover:bg-[var(--color-accent-rich)] disabled:opacity-60 transition-colors"
-            >
-              {saving ? "Saving…" : "Save changes"}
-            </button>
+            {GENDER_OPTIONS.map((o) => {
+              const active = gender === o.value;
+              return (
+                <button
+                  key={o.value}
+                  type="button"
+                  onClick={() => setGender(o.value)}
+                  aria-pressed={active}
+                  className={`h-8 px-3 rounded-full text-[13px] font-medium border transition-colors ${
+                    active
+                      ? "bg-[var(--color-accent-soft)] text-[var(--color-accent-ink)] border-[var(--color-accent-rule-strong)]"
+                      : "bg-[var(--color-bg-card)] text-[var(--color-ink-soft)] border-[var(--color-rule)] hover:text-[var(--color-ink)] hover:border-[var(--color-ink-faint)]"
+                  }`}
+                >
+                  {o.label}
+                </button>
+              );
+            })}
           </div>
-        </form>
+        </div>
+
+        {error && (
+          <div className="rounded-md border border-red-200 bg-red-50 text-red-700 text-sm px-3 py-2">
+            {error}
+          </div>
+        )}
+
+        <div className="flex gap-2 justify-end pt-1">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="h-9 px-3 rounded-md text-sm text-[var(--color-ink-soft)] hover:bg-[var(--color-bg-soft)]"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={saving}
+            className="h-9 px-4 rounded-md bg-[var(--color-accent)] text-white text-sm font-medium hover:bg-[var(--color-accent-rich)] disabled:opacity-60 transition-colors"
+          >
+            {saving ? "Saving…" : "Save changes"}
+          </button>
+        </div>
       </div>
-    </div>
+    </section>
   );
 }

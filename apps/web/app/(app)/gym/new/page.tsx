@@ -31,7 +31,7 @@ export default function NewGymPage() {
     <div className="max-w-lg">
       <BackButton href="/dashboard" label="Dashboard" className="mb-3" />
       <div className="mb-5">
-        <h1 className="text-2xl font-bold tracking-tight">Create a Gym</h1>
+        <h1 className="font-display text-2xl font-semibold tracking-tight leading-tight text-[var(--color-ink)]">Create a Gym</h1>
       </div>
 
       {error && (
@@ -40,16 +40,16 @@ export default function NewGymPage() {
         </div>
       )}
 
-      <div className="border border-gray-200 rounded-xl p-6">
+      <div className="border border-[var(--color-rule)] rounded-xl p-6">
         <div className="mb-4">
           <h2 className="text-base font-semibold">Gym Details</h2>
         </div>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
-            <label htmlFor="gym-name" className="text-sm font-medium">Gym Name</label>
+            <label htmlFor="gym-name" className="text-[11px] tracking-[0.12em] uppercase text-[var(--color-ink-muted)] font-medium">Gym Name</label>
             <input
               id="gym-name"
-              className="h-11 rounded-md border border-gray-300 px-3 text-sm"
+              className="h-11 rounded-md border border-[var(--color-rule-strong)] px-3 text-sm"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
@@ -58,7 +58,7 @@ export default function NewGymPage() {
           <button
             type="submit"
             disabled={loading}
-            className="self-start h-11 px-4 rounded-md bg-primary text-white text-sm font-medium hover:bg-primary/90 disabled:opacity-70"
+            className="self-start h-11 px-4 rounded-md bg-[var(--color-accent)] text-white text-sm font-medium hover:bg-[var(--color-accent-rich)] disabled:opacity-70"
           >
             {loading ? "Creating..." : "Create Gym"}
           </button>

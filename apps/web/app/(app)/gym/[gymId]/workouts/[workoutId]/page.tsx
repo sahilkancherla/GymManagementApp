@@ -265,9 +265,22 @@ export default function WorkoutLeaderboardPage() {
                         )}
                     </td>
                     <td className="px-4 py-3 align-top">
-                      <span className="text-[13px] font-semibold tabular-nums text-[var(--color-ink)]">
-                        {formatResult(s, w.format)}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[13px] font-semibold tabular-nums text-[var(--color-ink)]">
+                          {formatResult(s, w.format)}
+                        </span>
+                        {(s as any).rx_scaled && (
+                          <span
+                            className={`inline-flex items-center h-4 px-1.5 rounded text-[9.5px] font-semibold uppercase ${
+                              (s as any).rx_scaled === "rx"
+                                ? "bg-[var(--color-accent-soft)] text-[var(--color-accent-ink)]"
+                                : "bg-[var(--color-bg-soft)] text-[var(--color-ink-soft)]"
+                            }`}
+                          >
+                            {(s as any).rx_scaled === "rx" ? "Rx" : "Scaled"}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-5 py-3 align-top">
                       <span className="text-[12px] text-[var(--color-ink-soft)]">

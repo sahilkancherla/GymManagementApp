@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { ArrowUpRight, Pencil, Plus, Trash2 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { BackButton } from "@/components/BackButton";
 
@@ -96,86 +97,103 @@ export default function ManageProgramsPage() {
     }
   }
 
-  if (loading) return <p className="text-gray-600">Loading...</p>;
+  if (loading) return <p className="text-[13px] text-[var(--color-ink-soft)]">Loading…</p>;
+
+  const fmtDate = (d: string) =>
+    new Date(d + "T00:00:00").toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
 
   return (
     <div className="max-w-3xl">
-      <BackButton href={`/gym/${gymId}?tab=programs`} label="Gym" className="mb-3" />
-      <div className="flex items-center justify-between mb-5">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Programs</h1>
-          <p className="text-sm text-gray-600 mt-1">
-            Create programs and manage their workout calendars
+      <BackButton href={`/gym/${gymId}?tab=programs`} label="Programs" className="mb-4" />
+
+      <header className="flex items-start justify-between gap-4 mb-6">
+        <div className="min-w-0">
+          <h1 className="font-display text-2xl font-semibold tracking-tight leading-tight text-[var(--color-ink)]">
+            Programs
+          </h1>
+          <p className="text-[13px] text-[var(--color-ink-soft)] mt-1">
+            Create programs and manage their workout calendars.
           </p>
         </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="h-9 px-3 rounded-md bg-primary text-white text-sm font-medium hover:bg-primary/90"
-        >
-          {showForm ? "Cancel" : "New Program"}
-        </button>
-      </div>
+        {!showForm && (
+          <button
+            onClick={() => setShowForm(true)}
+            className="shrink-0 inline-flex items-center gap-1.5 h-9 px-3.5 rounded-md bg-[var(--color-accent)] text-white text-[13px] font-medium hover:bg-[var(--color-accent-rich)] transition-colors"
+          >
+            <Plus size={14} strokeWidth={2.25} />
+            New program
+          </button>
+        )}
+      </header>
 
       {showForm && (
-        <div className="mb-5 p-6 border border-gray-200 rounded-xl">
-          <h3 className="text-base font-semibold mb-3">Create Program</h3>
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Program Name</label>
+        <div className="mb-5 rounded-xl border border-[var(--color-rule)] bg-[var(--color-bg-card)] p-5">
+          <h3 className="text-[13px] font-semibold text-[var(--color-ink)] mb-4">Create Program</h3>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[11px] tracking-[0.12em] uppercase text-[var(--color-ink-muted)] font-medium">Program name</label>
               <input
-                className="h-11 rounded-md border border-gray-300 px-3 text-sm"
+                className="h-10 rounded-md border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
                 placeholder="e.g. Strength & Conditioning"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
             </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Description (optional)</label>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[11px] tracking-[0.12em] uppercase text-[var(--color-ink-muted)] font-medium">
+                Description <span className="normal-case tracking-normal">(optional)</span>
+              </label>
               <textarea
-                className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+                className="rounded-md border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
                 placeholder="What this program is about, who it's for, etc."
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={2}
               />
             </div>
-            <div className="flex gap-3">
-              <div className="flex flex-col gap-2 flex-1">
-                <label className="text-sm font-medium">Start Date</label>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] tracking-[0.12em] uppercase text-[var(--color-ink-muted)] font-medium">Start date</label>
                 <input
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="h-11 rounded-md border border-gray-300 px-3 text-sm bg-white"
+                  className="h-10 rounded-md border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
                 />
               </div>
-              <div className="flex flex-col gap-2 flex-1">
-                <label className="text-sm font-medium">End Date (optional)</label>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] tracking-[0.12em] uppercase text-[var(--color-ink-muted)] font-medium">
+                  End date <span className="normal-case tracking-normal">(optional)</span>
+                </label>
                 <input
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="h-11 rounded-md border border-gray-300 px-3 text-sm bg-white"
+                  className="h-10 rounded-md border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
                 />
               </div>
             </div>
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-2 pt-1">
               <button
                 onClick={() => {
                   setShowForm(false);
                   setName("");
                   setDescription("");
                 }}
-                className="h-9 px-3 rounded-md text-sm text-gray-700 hover:bg-gray-100"
+                className="h-9 px-3 rounded-md text-sm text-[var(--color-ink-soft)] hover:bg-[var(--color-bg-soft)]"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreate}
                 disabled={saving || !name.trim()}
-                className="h-9 px-3 rounded-md bg-primary text-white text-sm font-medium hover:bg-primary/90 disabled:opacity-70"
+                className="h-9 px-4 rounded-md bg-[var(--color-accent)] text-white text-sm font-medium hover:bg-[var(--color-accent-rich)] disabled:opacity-60 transition-colors"
               >
-                {saving ? "Creating..." : "Create & Edit Calendar"}
+                {saving ? "Creating…" : "Create & continue"}
               </button>
             </div>
           </div>
@@ -183,18 +201,17 @@ export default function ManageProgramsPage() {
       )}
 
       {programs.length === 0 && !showForm ? (
-        <div className="border border-gray-200 rounded-xl p-10">
-          <div className="flex flex-col items-center gap-3">
-            <p className="text-gray-600 text-center">
-              No programs yet. Create your first program to start adding workouts.
-            </p>
-            <button
-              onClick={() => setShowForm(true)}
-              className="h-10 px-4 rounded-md bg-primary text-white text-sm font-medium hover:bg-primary/90"
-            >
-              Create Program
-            </button>
-          </div>
+        <div className="border border-[var(--color-rule)] rounded-xl p-12 text-center">
+          <p className="text-[13px] text-[var(--color-ink-muted)] mb-4">
+            No programs yet. Create your first program to start adding workouts.
+          </p>
+          <button
+            onClick={() => setShowForm(true)}
+            className="inline-flex items-center gap-1.5 h-9 px-4 rounded-md bg-[var(--color-accent)] text-white text-[13px] font-medium hover:bg-[var(--color-accent-rich)] transition-colors"
+          >
+            <Plus size={14} strokeWidth={2.25} />
+            Create program
+          </button>
         </div>
       ) : (
         <div className="flex flex-col gap-3">
@@ -205,21 +222,21 @@ export default function ManageProgramsPage() {
               return (
                 <div
                   key={program.id}
-                  className="border-2 border-blue-400 bg-blue-50 rounded-xl p-4"
+                  className="border border-[var(--color-accent-rule)] bg-[var(--color-bg-card)] rounded-xl p-5 shadow-[var(--shadow-soft)]"
                 >
-                  <div className="flex flex-col gap-3">
-                    <div className="flex flex-col gap-2">
-                      <label className="text-sm font-medium">Name</label>
+                  <div className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[11px] tracking-[0.12em] uppercase text-[var(--color-ink-muted)] font-medium">Name</label>
                       <input
-                        className="h-10 rounded-md border border-gray-300 px-3 text-sm bg-white"
+                        className="h-10 rounded-md border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
                         value={editName}
                         onChange={(e) => setEditName(e.target.value)}
                       />
                     </div>
-                    <div className="flex flex-col gap-2">
-                      <label className="text-sm font-medium">Description</label>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[11px] tracking-[0.12em] uppercase text-[var(--color-ink-muted)] font-medium">Description</label>
                       <textarea
-                        className="rounded-md border border-gray-300 px-3 py-2 text-sm bg-white"
+                        className="rounded-md border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
                         value={editDescription}
                         onChange={(e) => setEditDescription(e.target.value)}
                         rows={2}
@@ -228,16 +245,16 @@ export default function ManageProgramsPage() {
                     <div className="flex justify-end gap-2">
                       <button
                         onClick={() => setEditingId(null)}
-                        className="h-8 px-3 rounded text-sm text-gray-700 hover:bg-gray-100"
+                        className="h-9 px-3 rounded-md text-sm text-[var(--color-ink-soft)] hover:bg-[var(--color-bg-soft)]"
                       >
                         Cancel
                       </button>
                       <button
                         onClick={() => handleUpdate(program.id)}
                         disabled={saving || !editName.trim()}
-                        className="h-8 px-3 rounded bg-primary text-white text-sm font-medium hover:bg-primary/90 disabled:opacity-70"
+                        className="h-9 px-4 rounded-md bg-[var(--color-accent)] text-white text-sm font-medium hover:bg-[var(--color-accent-rich)] disabled:opacity-60 transition-colors"
                       >
-                        {saving ? "Saving..." : "Save"}
+                        {saving ? "Saving…" : "Save"}
                       </button>
                     </div>
                   </div>
@@ -245,48 +262,36 @@ export default function ManageProgramsPage() {
               );
             }
 
+            const dateRange = program.start_date
+              ? program.end_date
+                ? `${fmtDate(program.start_date)} — ${fmtDate(program.end_date)}`
+                : `${fmtDate(program.start_date)} — Ongoing`
+              : null;
+
             return (
               <div
                 key={program.id}
-                className="border border-gray-200 rounded-xl p-4 hover:border-gray-400 transition-colors"
+                className="group border border-[var(--color-rule)] rounded-xl p-5 bg-[var(--color-bg-card)] hover:border-[var(--color-rule-strong)] transition-colors"
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <h3 className="text-base font-semibold">{program.name}</h3>
-                    {program.description && (
-                      <p className="text-sm text-gray-600 mt-1">{program.description}</p>
-                    )}
-                    {(program.start_date || program.end_date) && (
-                      <div className="flex gap-2 mt-1">
-                        {program.start_date && (
-                          <span className="text-xs text-gray-500">
-                            Starts:{" "}
-                            {new Date(program.start_date + "T00:00:00").toLocaleDateString(
-                              "en-US",
-                              { month: "short", day: "numeric", year: "numeric" }
-                            )}
-                          </span>
-                        )}
-                        {program.end_date ? (
-                          <span className="text-xs text-gray-500">
-                            Ends:{" "}
-                            {new Date(program.end_date + "T00:00:00").toLocaleDateString(
-                              "en-US",
-                              { month: "short", day: "numeric", year: "numeric" }
-                            )}
-                          </span>
-                        ) : program.start_date ? (
-                          <span className="text-xs text-gray-500">Ongoing</span>
-                        ) : null}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    {dateRange && (
+                      <div className="text-[10px] tracking-[0.14em] uppercase text-[var(--color-ink-muted)] tabular-nums mb-1">
+                        {dateRange}
                       </div>
                     )}
+                    <h3 className="text-[14px] font-semibold text-[var(--color-ink)]">{program.name}</h3>
+                    {program.description && (
+                      <p className="text-[13px] text-[var(--color-ink-soft)] mt-1 line-clamp-2">{program.description}</p>
+                    )}
                   </div>
-                  <div className="flex gap-2 items-center">
+                  <div className="flex gap-1.5 items-center shrink-0">
                     <Link
                       href={`/gym/${gymId}/admin/programs/${program.id}/edit`}
-                      className="h-9 px-3 inline-flex items-center rounded-md border border-gray-300 text-sm font-medium hover:bg-gray-50 no-underline text-gray-900"
+                      className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md border border-[var(--color-rule)] text-[12px] font-medium text-[var(--color-ink-soft)] hover:text-[var(--color-ink)] hover:border-[var(--color-ink)] transition-colors no-underline"
                     >
                       Manage
+                      <ArrowUpRight size={12} strokeWidth={1.75} />
                     </Link>
                     <button
                       onClick={() => {
@@ -294,15 +299,17 @@ export default function ManageProgramsPage() {
                         setEditName(program.name);
                         setEditDescription(program.description || "");
                       }}
-                      className="h-9 px-3 rounded-md text-sm text-gray-700 hover:bg-gray-100"
+                      className="h-8 w-8 inline-flex items-center justify-center rounded-md text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] hover:bg-[var(--color-bg-soft)]"
+                      title="Rename"
                     >
-                      Rename
+                      <Pencil size={13} strokeWidth={1.75} />
                     </button>
                     <button
                       onClick={() => handleDelete(program.id)}
-                      className="h-9 px-3 rounded-md text-sm text-gray-700 hover:bg-gray-100"
+                      className="h-8 w-8 inline-flex items-center justify-center rounded-md text-[var(--color-ink-muted)] hover:text-red-600 hover:bg-red-50"
+                      title="Delete"
                     >
-                      Delete
+                      <Trash2 size={13} strokeWidth={1.75} />
                     </button>
                   </div>
                 </div>

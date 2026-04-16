@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Building2, Plus, ShieldCheck, Users } from "lucide-react";
+import { ArrowUpRight, Building2, Plus } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 
 export default function DashboardPage() {
@@ -15,16 +15,6 @@ export default function DashboardPage() {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
-
-  const stats = useMemo(() => {
-    const total = gyms.length;
-    const active = gyms.filter((g) => g.status === "active").length;
-    const adminCount = gyms.filter((g) => {
-      const roles: string[] = g.roles || (g.role ? [g.role] : []);
-      return roles.includes("admin");
-    }).length;
-    return { total, active, adminCount };
-  }, [gyms]);
 
   return (
     <div className="space-y-10">
@@ -50,30 +40,6 @@ export default function DashboardPage() {
           New gym
         </Link>
       </header>
-
-      {/* Stat strip */}
-      <section className="grid grid-cols-1 sm:grid-cols-3 border border-[var(--color-rule)] rounded-xl overflow-hidden bg-[var(--color-bg-card)]">
-        <StatCell
-          icon={Building2}
-          label="Gyms"
-          value={stats.total}
-          hint="in your workspace"
-        />
-        <StatCell
-          icon={ShieldCheck}
-          label="Active"
-          value={stats.active}
-          hint="currently operational"
-          accent
-        />
-        <StatCell
-          icon={Users}
-          label="Admin access"
-          value={stats.adminCount}
-          hint="gyms you administrate"
-          last
-        />
-      </section>
 
       {/* Gyms list */}
       <section>
@@ -172,11 +138,7 @@ export default function DashboardPage() {
                         roles.map((r) => (
                           <span
                             key={r}
-                            className={`inline-flex items-center px-2 h-5 rounded-full text-[10.5px] font-medium capitalize tracking-wide ${
-                              r === "admin"
-                                ? "bg-[var(--color-accent-soft)] text-[var(--color-accent-ink)] border border-[var(--color-accent-rule)]"
-                                : "bg-[var(--color-bg-soft)] text-[var(--color-ink-soft)] border border-[var(--color-rule)]"
-                            }`}
+                            className="inline-flex items-center px-2 h-5 rounded-full text-[10.5px] font-medium capitalize tracking-wide bg-[var(--color-bg-soft)] text-[var(--color-ink-soft)] border border-[var(--color-rule)]"
                           >
                             {r}
                           </span>
@@ -194,47 +156,6 @@ export default function DashboardPage() {
           </ul>
         )}
       </section>
-    </div>
-  );
-}
-
-function StatCell({
-  icon: Icon,
-  label,
-  value,
-  hint,
-  accent,
-  last,
-}: {
-  icon: typeof Building2;
-  label: string;
-  value: number;
-  hint: string;
-  accent?: boolean;
-  last?: boolean;
-}) {
-  return (
-    <div
-      className={`relative p-5 ${
-        !last ? "sm:border-r sm:border-[var(--color-rule)]" : ""
-      }`}
-    >
-      <div className="flex items-center gap-2 text-[11.5px] font-medium tracking-wide uppercase text-[var(--color-ink-muted)]">
-        <Icon size={13} strokeWidth={1.75} />
-        <span>{label}</span>
-      </div>
-      <div className="mt-2 flex items-baseline gap-2">
-        <span
-          className={`font-display text-[30px] font-semibold tabular-nums ${
-            accent ? "text-[var(--color-accent-ink)]" : "text-[var(--color-ink)]"
-          }`}
-        >
-          {value}
-        </span>
-        <span className="text-[12px] text-[var(--color-ink-muted)]">
-          {hint}
-        </span>
-      </div>
     </div>
   );
 }

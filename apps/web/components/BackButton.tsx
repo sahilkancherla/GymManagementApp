@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 
 type BackButtonProps = {
   /** If provided, links to this href. Otherwise uses router.back(). */
@@ -21,13 +22,11 @@ export function BackButton({ href, label = "Back", className = "" }: BackButtonP
   const router = useRouter();
 
   const base =
-    "inline-flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 no-underline -ml-1 px-1 py-0.5 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900";
+    "inline-flex items-center gap-1.5 text-[12.5px] font-medium text-[var(--color-ink-soft)] hover:text-[var(--color-ink)] no-underline transition-colors";
 
   const content = (
     <>
-      <span aria-hidden="true" className="text-base leading-none">
-        ←
-      </span>
+      <ArrowLeft size={13} strokeWidth={1.9} />
       <span>{label}</span>
     </>
   );

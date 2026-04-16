@@ -21,6 +21,7 @@ export const logWorkoutStatSchema = z.object({
   amrap_rounds: z.number().int().min(0).nullable().optional(),
   amrap_reps: z.number().int().min(0).nullable().optional(),
   notes: z.string().nullable().optional(),
+  rx_scaled: z.enum(['rx', 'scaled']).nullable().optional(),
 });
 
 export type CreateWorkoutInput = z.infer<typeof createWorkoutSchema>;

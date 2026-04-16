@@ -17,12 +17,19 @@ programRoutes.get('/gyms/:gymId/programs', requireAuth, requireGymMember(), asyn
   try {
     const { data, error } = await supabase
       .from('programs')
-      .select('*')
+      .select('*, program_enrollments(count)')
       .eq('gym_id', req.params.gymId)
       .order('name');
 
     if (error) throw error;
-    res.json(data);
+
+    const shaped = (data || []).map((p: any) => ({
+      ...p,
+      enrollment_count: p.program_enrollments?.[0]?.count ?? 0,
+      program_enrollments: undefined,
+    }));
+
+    res.json(shaped);
   } catch (err) {
     next(err);
   }
