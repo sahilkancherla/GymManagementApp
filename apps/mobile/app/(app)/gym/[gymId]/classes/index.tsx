@@ -1,0 +1,103 @@
+import { useEffect, useState } from 'react';
+import { View, Text, TouchableOpacity, Alert, SectionList } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
+import { apiFetch } from '../../../../../lib/api';
+
+export default function ClassesScreen() {
+  const { gymId } = useLocalSearchParams();
+  const [occurrences, setOccurrences] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadOccurrences();
+  }, [gymId]);
+
+  async function loadOccurrences() {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const end = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
+      const data = await apiFetch(`/gyms/${gymId}/occurrences?start=${today}&end=${end}`);
+      setOccurrences((data || []).filter((o: any) => o.class));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSignup(occurrenceId: string) {
+    try {
+      await apiFetch(`/occurrences/${occurrenceId}/signup`, { method: 'POST' });
+      Alert.alert('Success', 'Signed up for class');
+      loadOccurrences();
+    } catch (err: any) {
+      Alert.alert('Error', err.message);
+    }
+  }
+
+  const grouped = occurrences.reduce((acc: Record<string, any[]>, occ) => {
+    if (!acc[occ.date]) acc[occ.date] = [];
+    acc[occ.date].push(occ);
+    return acc;
+  }, {});
+
+  const sections = Object.entries(grouped)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, data]) => ({
+      title: new Date(date + 'T00:00:00').toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'short',
+        day: 'numeric',
+      }),
+      data,
+    }));
+
+  return (
+    <View className="flex-1 p-4 bg-white">
+      <Text className="text-2xl font-bold mb-4">Class Schedule</Text>
+      {loading ? (
+        <Text className="text-gray-500 text-center mt-8">Loading...</Text>
+      ) : sections.length === 0 ? (
+        <Text className="text-gray-500 text-center mt-8">No classes scheduled this week.</Text>
+      ) : (
+        <SectionList
+          sections={sections}
+          keyExtractor={(item) => item.id}
+          renderSectionHeader={({ section }) => (
+            <Text className="text-xs font-semibold text-gray-400 mt-4 mb-2">{section.title}</Text>
+          )}
+          renderItem={({ item: occ }) => (
+            <View
+              className={`flex-row items-center p-4 bg-gray-100 rounded-lg mb-2 ${
+                occ.is_cancelled ? 'opacity-50' : ''
+              }`}
+            >
+              <View className="flex-1">
+                <Text className="text-base font-semibold">
+                  {occ.class?.name}
+                  {occ.is_cancelled && ' (Cancelled)'}
+                </Text>
+                <Text className="text-sm text-gray-500 mt-0.5">
+                  {occ.start_time?.slice(0, 5)} · {occ.class?.duration_minutes}min
+                  {occ.coach && ` · ${occ.coach.first_name}`}
+                </Text>
+                <Text className="text-xs text-gray-400 mt-0.5">
+                  {occ.signups?.length || 0}
+                  {occ.class?.capacity ? ` / ${occ.class.capacity}` : ''} signed up
+                </Text>
+              </View>
+              {!occ.is_cancelled && (
+                <TouchableOpacity
+                  className="bg-primary rounded-md px-3 py-2"
+                  onPress={() => handleSignup(occ.id)}
+                >
+                  <Text className="text-white text-xs font-semibold">Sign Up</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+        />
+      )}
+    </View>
+  );
+}

@@ -1,0 +1,28 @@
+{
+  "name": "acuo",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "overrides": {
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "nativewind": {
+      "tailwindcss": "^3.4.17"
+    },
+    "react-native-css-interop": {
+      "tailwindcss": "^3.4.17"
+    }
+  },
+  "scripts": {
+    "dev:server": "npm run dev -w @acuo/server",
+    "dev:web": "npm run dev -w @acuo/web",
+    "dev:mobile": "npm run dev -w @acuo/mobile",
+    "build:shared": "npm run build -w @acuo/shared",
+    "build:server": "npm run build -w @acuo/server",
+    "build:web": "npm run build -w @acuo/web",
+    "build": "npm run build:shared && npm run build:server && npm run build:web"
+  }
+}
