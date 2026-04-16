@@ -600,6 +600,70 @@ function GymCalendar({
 
 /* -------------------- Members -------------------- */
 
+const MEMBER_PAGE_SIZES = [10, 50, 100] as const;
+
+function MembersPaginationBar({
+  total,
+  page,
+  pageSize,
+  onPageChange,
+  onPageSizeChange,
+}: {
+  total: number;
+  page: number;
+  pageSize: number;
+  onPageChange: (p: number) => void;
+  onPageSizeChange: (s: number) => void;
+}) {
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const end = Math.min(page * pageSize, total);
+
+  return (
+    <div className="flex items-center justify-between px-5 py-3 border-t border-[var(--color-rule)] bg-[var(--color-bg-sunken)]">
+      <div className="flex items-center gap-2">
+        <span className="text-[12px] text-[var(--color-ink-muted)]">Show</span>
+        <div className="inline-flex gap-0.5 p-0.5 rounded-md border border-[var(--color-rule)] bg-[var(--color-bg-card)]">
+          {MEMBER_PAGE_SIZES.map((s) => (
+            <button
+              key={s}
+              onClick={() => onPageSizeChange(s)}
+              className={`h-6 px-2 rounded text-[11px] font-medium tabular-nums transition-colors ${
+                pageSize === s
+                  ? "bg-[var(--color-ink)] text-white"
+                  : "text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]"
+              }`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="flex items-center gap-3">
+        <span className="text-[12px] text-[var(--color-ink-muted)] tabular-nums">
+          {start}–{end} of {total}
+        </span>
+        <div className="flex gap-1">
+          <button
+            disabled={page <= 1}
+            onClick={() => onPageChange(page - 1)}
+            className="h-7 w-7 rounded-md border border-[var(--color-rule)] bg-[var(--color-bg-card)] text-[var(--color-ink-soft)] hover:text-[var(--color-ink)] disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center text-[12px]"
+          >
+            ‹
+          </button>
+          <button
+            disabled={page >= totalPages}
+            onClick={() => onPageChange(page + 1)}
+            className="h-7 w-7 rounded-md border border-[var(--color-rule)] bg-[var(--color-bg-card)] text-[var(--color-ink-soft)] hover:text-[var(--color-ink)] disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center text-[12px]"
+          >
+            ›
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MembersPanel({
   members,
   gymId,
@@ -615,6 +679,8 @@ function MembersPanel({
     "all" | "admin" | "coach" | "member"
   >("all");
   const [showAdd, setShowAdd] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(10);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -638,6 +704,16 @@ function MembersPanel({
     }
     return c;
   }, [members]);
+
+  const paginated = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, page, pageSize]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [query, roleFilter]);
 
   return (
     <section className="space-y-5">
@@ -751,7 +827,7 @@ function MembersPanel({
               </tr>
             </thead>
             <tbody>
-              {filtered.map((m) => {
+              {paginated.map((m) => {
                 const memberRoles: string[] = m.roles || [];
                 const isActive = m.status === "active";
                 const enrollments: any[] = m.program_enrollments || [];
@@ -855,6 +931,18 @@ function MembersPanel({
               })}
             </tbody>
           </table>
+        )}
+        {filtered.length > MEMBER_PAGE_SIZES[0] && (
+          <MembersPaginationBar
+            total={filtered.length}
+            page={page}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={(s) => {
+              setPageSize(s);
+              setPage(1);
+            }}
+          />
         )}
       </div>
 

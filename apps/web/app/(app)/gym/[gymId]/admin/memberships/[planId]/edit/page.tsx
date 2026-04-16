@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { CreditCard, Pencil, Users } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { BackButton } from "@/components/BackButton";
@@ -14,6 +15,8 @@ type MembershipFormState = {
   program_ids: string[];
 };
 
+const PAGE_SIZES = [10, 50, 100] as const;
+
 function parsePriceToCents(input: string): number {
   const cleaned = input.replace(/[^0-9.]/g, "");
   if (!cleaned) return 0;
@@ -24,6 +27,68 @@ function parsePriceToCents(input: string): number {
 
 function formatPrice(cents: number) {
   return `$${(cents / 100).toFixed(2)}`;
+}
+
+function PaginationBar({
+  total,
+  page,
+  pageSize,
+  onPageChange,
+  onPageSizeChange,
+}: {
+  total: number;
+  page: number;
+  pageSize: number;
+  onPageChange: (p: number) => void;
+  onPageSizeChange: (s: number) => void;
+}) {
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const end = Math.min(page * pageSize, total);
+
+  return (
+    <div className="flex items-center justify-between px-5 py-3 border-t border-[var(--color-rule)] bg-[var(--color-bg-sunken)]">
+      <div className="flex items-center gap-2">
+        <span className="text-[12px] text-[var(--color-ink-muted)]">Show</span>
+        <div className="inline-flex gap-0.5 p-0.5 rounded-md border border-[var(--color-rule)] bg-[var(--color-bg-card)]">
+          {PAGE_SIZES.map((s) => (
+            <button
+              key={s}
+              onClick={() => onPageSizeChange(s)}
+              className={`h-6 px-2 rounded text-[11px] font-medium tabular-nums transition-colors ${
+                pageSize === s
+                  ? "bg-[var(--color-ink)] text-white"
+                  : "text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]"
+              }`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="flex items-center gap-3">
+        <span className="text-[12px] text-[var(--color-ink-muted)] tabular-nums">
+          {start}–{end} of {total}
+        </span>
+        <div className="flex gap-1">
+          <button
+            disabled={page <= 1}
+            onClick={() => onPageChange(page - 1)}
+            className="h-7 w-7 rounded-md border border-[var(--color-rule)] bg-[var(--color-bg-card)] text-[var(--color-ink-soft)] hover:text-[var(--color-ink)] disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center text-[12px]"
+          >
+            ‹
+          </button>
+          <button
+            disabled={page >= totalPages}
+            onClick={() => onPageChange(page + 1)}
+            className="h-7 w-7 rounded-md border border-[var(--color-rule)] bg-[var(--color-bg-card)] text-[var(--color-ink-soft)] hover:text-[var(--color-ink)] disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center text-[12px]"
+          >
+            ›
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function EditMembershipPage() {
@@ -49,6 +114,11 @@ export default function EditMembershipPage() {
   const [deactivating, setDeactivating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [subscribers, setSubscribers] = useState<any[]>([]);
+  const [subsLoading, setSubsLoading] = useState(true);
+  const [subsPage, setSubsPage] = useState(1);
+  const [subsPageSize, setSubsPageSize] = useState<number>(10);
+
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -66,10 +136,12 @@ export default function EditMembershipPage() {
 
   async function loadData() {
     setLoading(true);
+    setSubsLoading(true);
     try {
-      const [plansRes, programsRes] = await Promise.all([
+      const [plansRes, programsRes, subsRes] = await Promise.all([
         apiFetch(`/gyms/${gymId}/plans`),
         apiFetch(`/gyms/${gymId}/programs`),
+        apiFetch(`/gyms/${gymId}/plans/${planId}/subscribers`),
       ]);
       const found = (plansRes || []).find((p: any) => p.id === planId);
       if (!found) {
@@ -79,11 +151,13 @@ export default function EditMembershipPage() {
         resetForm(found);
       }
       setPrograms(programsRes || []);
+      setSubscribers(subsRes || []);
     } catch (err) {
       console.error(err);
       setError("Failed to load membership");
     } finally {
       setLoading(false);
+      setSubsLoading(false);
     }
   }
 
@@ -137,6 +211,11 @@ export default function EditMembershipPage() {
 
   const billingLabel = (t: string) =>
     t === "monthly" ? "/ month" : t === "annual" ? "/ year" : "one-time";
+
+  const paginatedSubs = useMemo(() => {
+    const start = (subsPage - 1) * subsPageSize;
+    return subscribers.slice(start, start + subsPageSize);
+  }, [subscribers, subsPage, subsPageSize]);
 
   if (loading) {
     return (
@@ -355,6 +434,128 @@ export default function EditMembershipPage() {
             {plan.subscriber_count || 0}{" "}
             <span className="font-normal">active</span>
           </span>
+        </section>
+      )}
+
+      {/* Subscribers list */}
+      {!editing && (
+        <section className="mb-6">
+          <div className="flex items-start justify-between gap-4 mb-5">
+            <div>
+              <p className="text-[10.5px] font-medium tracking-[0.14em] uppercase text-[var(--color-ink-muted)]">
+                Subscribers
+              </p>
+              <h2 className="font-display text-xl font-semibold tracking-tight mt-0.5">
+                Members
+              </h2>
+              <p className="text-[13px] text-[var(--color-ink-soft)] mt-0.5">
+                Active subscribers on this membership plan.
+              </p>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-[var(--color-rule)] bg-[var(--color-bg-card)] overflow-hidden">
+            {subsLoading ? (
+              <div className="text-center py-14">
+                <p className="text-[13px] text-[var(--color-ink-muted)]">Loading subscribers…</p>
+              </div>
+            ) : subscribers.length === 0 ? (
+              <div className="text-center py-14">
+                <div className="mx-auto h-10 w-10 rounded-full bg-[var(--color-bg-soft)] flex items-center justify-center mb-3">
+                  <Users size={16} className="text-[var(--color-ink-muted)]" strokeWidth={1.75} />
+                </div>
+                <p className="text-[13px] text-[var(--color-ink-muted)]">
+                  No active subscribers on this plan yet.
+                </p>
+              </div>
+            ) : (
+              <>
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-[var(--color-rule)] bg-[var(--color-bg-sunken)]">
+                      <th className="text-left px-5 py-3 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-[var(--color-ink-muted)]">
+                        Member
+                      </th>
+                      <th className="text-left px-4 py-3 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-[var(--color-ink-muted)]">
+                        Since
+                      </th>
+                      <th className="text-right px-5 py-3 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-[var(--color-ink-muted)]">
+                        Status
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginatedSubs.map((s: any) => {
+                      const initials = `${(s.profile?.first_name?.[0] || "").toUpperCase()}${(s.profile?.last_name?.[0] || "").toUpperCase()}`;
+                      return (
+                        <tr
+                          key={s.id}
+                          className="border-b border-[var(--color-rule)] last:border-b-0 hover:bg-[var(--color-bg-sunken)] transition-colors"
+                        >
+                          <td className="px-5 py-3">
+                            <Link
+                              href={`/gym/${gymId}/members/${s.user_id}`}
+                              className="flex items-center gap-3 no-underline text-[var(--color-ink)]"
+                            >
+                              <div className="w-9 h-9 rounded-full bg-[var(--color-bg-soft)] ring-1 ring-[var(--color-rule)] flex items-center justify-center overflow-hidden shrink-0">
+                                {s.profile?.avatar_url ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img
+                                    src={s.profile.avatar_url}
+                                    alt=""
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <span className="text-[11px] font-semibold text-[var(--color-ink-soft)]">
+                                    {initials || "—"}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="text-[13.5px] font-medium truncate">
+                                  {s.profile?.first_name} {s.profile?.last_name}
+                                </div>
+                                <div className="text-[11.5px] text-[var(--color-ink-muted)] truncate">
+                                  {s.profile?.email || "—"}
+                                </div>
+                              </div>
+                            </Link>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="text-[12px] text-[var(--color-ink-soft)] tabular-nums">
+                              {new Date(s.created_at).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                              })}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3 text-right">
+                            <span className="inline-flex items-center gap-1.5 h-6 px-2 rounded-full text-[11px] font-medium border bg-[var(--color-accent-soft)] text-[var(--color-accent-ink)] border-[var(--color-accent-rule)]">
+                              <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]" />
+                              Active
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                {subscribers.length > PAGE_SIZES[0] && (
+                  <PaginationBar
+                    total={subscribers.length}
+                    page={subsPage}
+                    pageSize={subsPageSize}
+                    onPageChange={setSubsPage}
+                    onPageSizeChange={(s) => {
+                      setSubsPageSize(s);
+                      setSubsPage(1);
+                    }}
+                  />
+                )}
+              </>
+            )}
+          </div>
         </section>
       )}
 

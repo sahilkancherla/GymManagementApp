@@ -186,6 +186,31 @@ planRoutes.put(
   },
 );
 
+// List subscribers for a specific plan (admin only)
+planRoutes.get(
+  '/gyms/:gymId/plans/:planId/subscribers',
+  requireAuth,
+  requireGymRole('admin'),
+  async (req, res, next) => {
+    try {
+      const { gymId, planId } = req.params;
+
+      const { data: subs, error } = await supabase
+        .from('subscriptions')
+        .select('id, user_id, status, period_start, period_end, classes_used, created_at, profile:profiles(*)')
+        .eq('gym_id', gymId)
+        .eq('plan_id', planId)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      res.json(subs || []);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
 // Deactivate plan (admin only)
 planRoutes.delete('/gyms/:gymId/plans/:planId', requireAuth, requireGymRole('admin'), async (req, res, next) => {
   try {

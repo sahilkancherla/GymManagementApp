@@ -344,6 +344,70 @@ type ProgramMember = {
   }[];
 };
 
+const PROG_PAGE_SIZES = [10, 50, 100] as const;
+
+function ProgPaginationBar({
+  total,
+  page,
+  pageSize,
+  onPageChange,
+  onPageSizeChange,
+}: {
+  total: number;
+  page: number;
+  pageSize: number;
+  onPageChange: (p: number) => void;
+  onPageSizeChange: (s: number) => void;
+}) {
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const end = Math.min(page * pageSize, total);
+
+  return (
+    <div className="flex items-center justify-between px-5 py-3 border-t border-[var(--color-rule)] bg-[var(--color-bg-sunken)]">
+      <div className="flex items-center gap-2">
+        <span className="text-[12px] text-[var(--color-ink-muted)]">Show</span>
+        <div className="inline-flex gap-0.5 p-0.5 rounded-md border border-[var(--color-rule)] bg-[var(--color-bg-card)]">
+          {PROG_PAGE_SIZES.map((s) => (
+            <button
+              key={s}
+              onClick={() => onPageSizeChange(s)}
+              className={`h-6 px-2 rounded text-[11px] font-medium tabular-nums transition-colors ${
+                pageSize === s
+                  ? "bg-[var(--color-ink)] text-white"
+                  : "text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]"
+              }`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="flex items-center gap-3">
+        <span className="text-[12px] text-[var(--color-ink-muted)] tabular-nums">
+          {start}–{end} of {total}
+        </span>
+        <div className="flex gap-1">
+          <button
+            disabled={page <= 1}
+            onClick={() => onPageChange(page - 1)}
+            className="h-7 w-7 rounded-md border border-[var(--color-rule)] bg-[var(--color-bg-card)] text-[var(--color-ink-soft)] hover:text-[var(--color-ink)] disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center text-[12px]"
+          >
+            ‹
+          </button>
+          <button
+            disabled={page >= totalPages}
+            onClick={() => onPageChange(page + 1)}
+            className="h-7 w-7 rounded-md border border-[var(--color-rule)] bg-[var(--color-bg-card)] text-[var(--color-ink-soft)] hover:text-[var(--color-ink)] disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center text-[12px]"
+          >
+            ›
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MembersSection({
   gymId,
   programId,
@@ -355,6 +419,8 @@ function MembersSection({
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "active" | "inactive">("all");
   const [query, setQuery] = useState("");
+  const [mPage, setMPage] = useState(1);
+  const [mPageSize, setMPageSize] = useState<number>(10);
 
   useEffect(() => {
     (async () => {
@@ -388,6 +454,16 @@ function MembersSection({
     const email = (r.profile?.email || "").toLowerCase();
     return name.includes(q) || email.includes(q);
   });
+
+  const paginated = useMemo(() => {
+    const start = (mPage - 1) * mPageSize;
+    return filtered.slice(start, start + mPageSize);
+  }, [filtered, mPage, mPageSize]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setMPage(1);
+  }, [query, filter]);
 
   if (loading)
     return <p className="text-[var(--color-ink-soft)]">Loading members…</p>;
@@ -476,7 +552,7 @@ function MembersSection({
               </tr>
             </thead>
             <tbody>
-              {filtered.map((m) => {
+              {paginated.map((m) => {
                 const isActive = m.status === "active";
                 const sub = m.subscriptions.find((s) => s.status === "active");
                 const priceCents = sub?.plan?.price_cents ?? 0;
@@ -565,6 +641,18 @@ function MembersSection({
               })}
             </tbody>
           </table>
+        )}
+        {filtered.length > PROG_PAGE_SIZES[0] && (
+          <ProgPaginationBar
+            total={filtered.length}
+            page={mPage}
+            pageSize={mPageSize}
+            onPageChange={setMPage}
+            onPageSizeChange={(s) => {
+              setMPageSize(s);
+              setMPage(1);
+            }}
+          />
         )}
       </div>
     </section>
