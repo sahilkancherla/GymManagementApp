@@ -1,11 +1,10 @@
 {
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
-    "installCommand": "cd ../.. && npm install",
-    "buildCommand": "cd ../.. && npm run build:shared && npm run build -w @acuo/server"
+    "buildCommand": "npm run build:shared && npm run build -w @acuo/server"
   },
   "deploy": {
-    "startCommand": "cd ../.. && npm run start -w @acuo/server",
+    "startCommand": "npm run start -w @acuo/server",
     "healthcheckPath": "/api/health",
     "restartPolicyType": "ON_FAILURE"
   }
