@@ -1,55 +1,128 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  ScrollView,
+  Platform,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Link } from 'expo-router';
 import { APP_NAME } from '@acuo/shared';
 import { supabase } from '../../lib/supabase';
+import { colors } from '../../lib/theme';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleLogin() {
+    setError(null);
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) Alert.alert('Error', error.message);
+    const { error: authError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (authError) setError(authError.message);
     setLoading(false);
   }
 
   return (
-    <View className="flex-1 justify-center p-6 bg-white">
-      <Text className="text-3xl font-bold text-center mb-2">{APP_NAME}</Text>
-      <Text className="text-base text-gray-500 text-center mb-8">Sign in to your account</Text>
-
-      <TextInput
-        className="border border-gray-200 rounded-lg p-3 mb-4 text-base"
-        placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
-      />
-      <TextInput
-        className="border border-gray-200 rounded-lg p-3 mb-4 text-base"
-        placeholder="Password"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-      />
-
-      <TouchableOpacity
-        className="bg-primary rounded-lg p-4 items-center mb-4"
-        onPress={handleLogin}
-        disabled={loading}
+    <SafeAreaView className="flex-1 bg-base">
+      <KeyboardAvoidingView
+        className="flex-1"
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <Text className="text-white text-base font-semibold">
-          {loading ? 'Signing in...' : 'Sign In'}
-        </Text>
-      </TouchableOpacity>
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
+          keyboardShouldPersistTaps="handled"
+          className="px-7"
+        >
+          {/* Brand */}
+          <View className="items-center mb-12">
+            <View className="w-14 h-14 rounded-2xl bg-accent-deep items-center justify-center mb-4">
+              <Text className="text-white text-2xl font-bold">
+                {APP_NAME.charAt(0)}
+              </Text>
+            </View>
+            <Text className="text-2xl font-bold text-ink tracking-tight">
+              {APP_NAME}
+            </Text>
+            <Text className="text-sm text-ink-muted mt-1">
+              Sign in to your account
+            </Text>
+          </View>
 
-      <Link href="/(auth)/register" className="self-center">
-        <Text className="text-secondary text-sm">Don't have an account? Sign up</Text>
-      </Link>
-    </View>
+          {/* Error */}
+          {error && (
+            <View className="bg-danger-soft rounded-xl px-4 py-3 mb-5">
+              <Text className="text-danger text-sm">{error}</Text>
+            </View>
+          )}
+
+          {/* Email */}
+          <View className="mb-4">
+            <Text className="text-xs font-semibold text-ink-soft mb-1.5 ml-1">
+              EMAIL
+            </Text>
+            <TextInput
+              className="border border-rule-strong bg-card rounded-xl px-4 text-base"
+              style={{ color: colors.ink, height: 48 }}
+              placeholder="you@example.com"
+              placeholderTextColor={colors.inkMuted}
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              autoComplete="email"
+            />
+          </View>
+
+          {/* Password */}
+          <View className="mb-6">
+            <Text className="text-xs font-semibold text-ink-soft mb-1.5 ml-1">
+              PASSWORD
+            </Text>
+            <TextInput
+              className="border border-rule-strong bg-card rounded-xl px-4 text-base"
+              style={{ color: colors.ink, height: 48 }}
+              placeholder="Enter your password"
+              placeholderTextColor={colors.inkMuted}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              autoComplete="password"
+            />
+          </View>
+
+          {/* Sign-in button */}
+          <TouchableOpacity
+            className="bg-accent rounded-xl items-center justify-center mb-8"
+            style={{ height: 50 }}
+            onPress={handleLogin}
+            disabled={loading}
+            activeOpacity={0.8}
+          >
+            <Text className="text-white text-base font-semibold">
+              {loading ? 'Signing in...' : 'Sign In'}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Register link */}
+          <View className="flex-row justify-center">
+            <Text className="text-ink-muted text-sm">
+              Don't have an account?{' '}
+            </Text>
+            <Link href="/(auth)/register">
+              <Text className="text-accent text-sm font-semibold">Sign up</Text>
+            </Link>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }

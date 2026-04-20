@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { apiFetch } from '../../../../../lib/api';
+import { colors } from '../../../../../lib/theme';
 
 export default function JoinGymScreen() {
   const { gymId } = useLocalSearchParams();
@@ -32,26 +34,35 @@ export default function JoinGymScreen() {
     }
   }
 
-  if (loading)
+  if (loading) {
     return (
-      <View className="flex-1 p-4 bg-white">
-        <Text>Loading...</Text>
-      </View>
+      <SafeAreaView className="flex-1 bg-base" edges={['top']}>
+        <View className="flex-1 justify-center items-center">
+          <ActivityIndicator color={colors.accent} />
+        </View>
+      </SafeAreaView>
     );
+  }
 
   return (
-    <View className="flex-1 p-4 bg-white">
-      <Text className="text-2xl font-bold mb-4">Membership Plans</Text>
+    <SafeAreaView className="flex-1 bg-base" edges={['top']}>
+      <View className="px-5 pt-4 pb-2">
+        <Text className="text-xl font-bold text-ink">Membership Plans</Text>
+        <Text className="text-sm text-ink-soft mt-1">
+          Choose a plan to get started.
+        </Text>
+      </View>
+
       {plans.length === 0 ? (
-        <View className="items-center mt-8">
-          <Text className="text-gray-500 mb-4">No plans available.</Text>
+        <View className="flex-1 justify-center items-center px-5">
+          <Text className="text-ink-muted text-sm mb-4">No plans available.</Text>
           <TouchableOpacity
-            className="bg-primary rounded-md px-4 py-3"
+            className="bg-accent rounded-lg px-5 py-3"
             onPress={() => handleJoin()}
             disabled={joining}
           >
             <Text className="text-white text-sm font-semibold">
-              {joining ? 'Joining...' : 'Join without a plan'}
+              {joining ? 'Joining…' : 'Join without a plan'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -59,30 +70,51 @@ export default function JoinGymScreen() {
         <FlatList
           data={plans}
           keyExtractor={(item) => item.id}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 24 }}
+          ItemSeparatorComponent={() => <View className="h-3" />}
           renderItem={({ item: plan }) => (
-            <View className="flex-row items-center p-4 bg-gray-100 rounded-lg mb-3">
-              <View className="flex-1">
-                <Text className="text-base font-semibold">{plan.name}</Text>
+            <View className="bg-card rounded-xl border border-rule p-4">
+              <View className="mb-3">
+                <Text className="text-base font-semibold text-ink">{plan.name}</Text>
                 {plan.description && (
-                  <Text className="text-sm text-gray-500 mt-0.5">{plan.description}</Text>
+                  <Text className="text-sm text-ink-soft mt-1" numberOfLines={2}>
+                    {plan.description}
+                  </Text>
                 )}
-                <Text className="text-sm font-medium mt-1">
-                  ${(plan.price_cents / 100).toFixed(2)}
-                  {plan.billing_period && ` / ${plan.billing_period}`}
-                  {plan.class_count && ` · ${plan.class_count} classes`}
-                </Text>
               </View>
-              <TouchableOpacity
-                className="bg-primary rounded-md px-4 py-2.5"
-                onPress={() => handleJoin(plan.id)}
-                disabled={joining}
-              >
-                <Text className="text-white text-sm font-semibold">{joining ? '...' : 'Select'}</Text>
-              </TouchableOpacity>
+              <View className="flex-row items-center justify-between">
+                <Text className="text-base font-semibold text-ink">
+                  ${(plan.price_cents / 100).toFixed(2)}
+                  <Text className="text-sm font-normal text-ink-muted">
+                    {plan.billing_period ? ` / ${plan.billing_period}` : ''}
+                    {plan.class_count ? ` · ${plan.class_count} classes` : ''}
+                  </Text>
+                </Text>
+                <TouchableOpacity
+                  className="bg-accent rounded-lg px-4 py-2"
+                  onPress={() => handleJoin(plan.id)}
+                  disabled={joining}
+                >
+                  <Text className="text-white text-sm font-semibold">
+                    {joining ? '…' : 'Select'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
           )}
+          ListFooterComponent={
+            <TouchableOpacity
+              className="mt-4 border border-rule rounded-xl py-3 items-center"
+              onPress={() => handleJoin()}
+              disabled={joining}
+            >
+              <Text className="text-sm font-medium text-ink-soft">
+                {joining ? 'Joining…' : 'Join without a plan'}
+              </Text>
+            </TouchableOpacity>
+          }
         />
       )}
-    </View>
+    </SafeAreaView>
   );
 }

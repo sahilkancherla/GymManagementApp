@@ -79,7 +79,7 @@ gymRoutes.get('/gyms', requireAuth, async (req, res, next) => {
 
     const { data, error } = await supabase
       .from('gym_members')
-      .select('id, status, gym:gyms(*), roles:gym_member_roles(role)')
+      .select('id, gym_id, status, gym:gyms(*), roles:gym_member_roles(role)')
       .eq('user_id', user.id);
     if (error) throw error;
 
@@ -94,6 +94,7 @@ gymRoutes.get('/gyms', requireAuth, async (req, res, next) => {
       )[0] ?? null;
       return {
         id: row.id,
+        gym_id: row.gym_id,
         role: primary,
         roles,
         status: row.status,

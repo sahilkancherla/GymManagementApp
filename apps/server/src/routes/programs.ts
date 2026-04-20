@@ -15,6 +15,8 @@ export const programRoutes = Router();
 // List programs for a gym
 programRoutes.get('/gyms/:gymId/programs', requireAuth, requireGymMember(), async (req, res, next) => {
   try {
+    const userId = (req as AuthenticatedRequest).user!.id;
+
     const { data, error } = await supabase
       .from('programs')
       .select('*, program_enrollments(count)')
@@ -23,9 +25,23 @@ programRoutes.get('/gyms/:gymId/programs', requireAuth, requireGymMember(), asyn
 
     if (error) throw error;
 
+    // Fetch current user's active enrollments for this gym's programs
+    const programIds = (data || []).map((p: any) => p.id);
+    let enrolledSet = new Set<string>();
+    if (programIds.length > 0) {
+      const { data: enrollments } = await supabase
+        .from('program_enrollments')
+        .select('program_id')
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .in('program_id', programIds);
+      enrolledSet = new Set((enrollments || []).map((e: any) => e.program_id));
+    }
+
     const shaped = (data || []).map((p: any) => ({
       ...p,
       enrollment_count: p.program_enrollments?.[0]?.count ?? 0,
+      user_enrolled: enrolledSet.has(p.id),
       program_enrollments: undefined,
     }));
 

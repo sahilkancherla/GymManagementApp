@@ -43,7 +43,7 @@ app.use('/api', announcementRoutes);
 // Error handling
 app.use(errorHandler);
 
-app.listen(port, () => {
+app.listen(Number(port), '0.0.0.0', () => {
   console.log(`${APP_NAME} API server running on port ${port}`);
 });
 

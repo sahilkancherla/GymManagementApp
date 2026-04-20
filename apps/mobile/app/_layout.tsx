@@ -1,9 +1,10 @@
 import '../global.css';
 import { useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { View, StatusBar } from 'react-native';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { GymProvider } from '../lib/gym-context';
 
 export default function RootLayout() {
   const [session, setSession] = useState<Session | null>(null);
@@ -17,7 +18,9 @@ export default function RootLayout() {
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
     });
 
@@ -37,8 +40,17 @@ export default function RootLayout() {
   }, [session, loading, segments]);
 
   if (loading) {
-    return <View className="flex-1 bg-white" />;
+    return (
+      <View className="flex-1 bg-base">
+        <StatusBar barStyle="dark-content" />
+      </View>
+    );
   }
 
-  return <Slot />;
+  return (
+    <GymProvider>
+      <StatusBar barStyle="dark-content" />
+      <Slot />
+    </GymProvider>
+  );
 }
