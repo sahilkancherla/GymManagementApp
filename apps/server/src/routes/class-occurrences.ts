@@ -90,7 +90,7 @@ classOccurrenceRoutes.get('/gyms/:gymId/occurrences', requireAuth, async (req, r
       .from('class_occurrences')
       .select(`
         *,
-        class:classes(id, name, gym_id, capacity, duration_minutes),
+        class:classes(id, name, gym_id, capacity, duration_minutes, program_id),
         coach:profiles(id, first_name, last_name),
         signups:class_signups(id, user_id, checked_in, profile:profiles!class_signups_user_id_fkey(id, first_name, last_name))
       `)
