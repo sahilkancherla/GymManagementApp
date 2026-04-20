@@ -263,8 +263,8 @@ workoutStatRoutes.get(
       const gymId = (workout as any).program?.gym_id as string | undefined;
       if (!gymId) throw new AppError(500, 'Workout missing gym');
       const roles = await getRolesAtGym(user.id, gymId);
-      if (!roles.some((r) => r === 'admin' || r === 'coach')) {
-        throw new AppError(403, 'Only admins and coaches can view the leaderboard');
+      if (roles.length === 0) {
+        throw new AppError(403, 'You must be a member of this gym to view the leaderboard');
       }
 
       const { data: stats, error: statsError } = await supabase

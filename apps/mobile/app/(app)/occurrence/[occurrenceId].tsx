@@ -128,6 +128,9 @@ export default function OccurrenceDetailScreen() {
   const [memberSearch, setMemberSearch] = useState('');
   const [addingUserId, setAddingUserId] = useState<string | null>(null);
 
+  // Scores by user_id → { workoutId → stat }
+  const [scoresByUser, setScoresByUser] = useState<Map<string, Map<string, any>>>(new Map());
+
   // Score entry state
   const [scoringSignup, setScoringSignup] = useState<SignupEntry | null>(null);
   const [scoreTimeMin, setScoreTimeMin] = useState('');
@@ -168,6 +171,7 @@ export default function OccurrenceDetailScreen() {
                 w.class_ids.length === 0 || w.class_ids.includes(occ.class!.id)
               );
               setWorkouts(applicable);
+              loadAllScores(applicable);
             } catch {
               setWorkouts([]);
             }
@@ -200,6 +204,7 @@ export default function OccurrenceDetailScreen() {
               w.class_ids.length === 0 || w.class_ids.includes(occ.class!.id)
             );
             setWorkouts(applicable);
+            loadAllScores(applicable);
           } catch {
             setWorkouts([]);
           }
@@ -310,6 +315,37 @@ export default function OccurrenceDetailScreen() {
     }
   }
 
+  async function loadAllScores(wks: Workout[]) {
+    if (wks.length === 0) { setScoresByUser(new Map()); return; }
+    try {
+      const allStats = await Promise.all(
+        wks.map((w) => apiFetch(`/workouts/${w.id}/stats`).then((d: any[]) => ({ workoutId: w.id, stats: d || [] })))
+      );
+      const map = new Map<string, Map<string, any>>();
+      for (const { workoutId, stats } of allStats) {
+        for (const stat of stats) {
+          if (!map.has(stat.user_id)) map.set(stat.user_id, new Map());
+          map.get(stat.user_id)!.set(workoutId, stat);
+        }
+      }
+      setScoresByUser(map);
+    } catch {
+      setScoresByUser(new Map());
+    }
+  }
+
+  function formatScoreInline(stat: any, format: string): string {
+    if (format === 'time' && stat.time_seconds != null) {
+      const min = Math.floor(stat.time_seconds / 60);
+      const sec = stat.time_seconds % 60;
+      return `${min}:${String(sec).padStart(2, '0')}`;
+    }
+    if (format === 'amrap') {
+      return `${stat.amrap_rounds ?? 0} + ${stat.amrap_reps ?? 0}`;
+    }
+    return '';
+  }
+
   // Score entry flow
   function openScoreEntry(signup: SignupEntry) {
     setScoringSignup(signup);
@@ -365,6 +401,7 @@ export default function OccurrenceDetailScreen() {
       });
       Alert.alert('Saved', `Score recorded for ${profileName(scoringSignup.profile)}`);
       setScoringSignup(null);
+      loadAllScores(workouts);
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Could not save score');
     } finally {
@@ -616,16 +653,47 @@ export default function OccurrenceDetailScreen() {
                       )}
                     </View>
 
-                    {/* Enter Score button — shown for checked-in users when admin/coach and workouts exist */}
-                    {canCheckIn && signup.checked_in && workouts.length > 0 && (
-                      <TouchableOpacity
-                        className="mt-2 ml-11 border border-rule rounded-lg py-1.5 px-3 flex-row items-center self-start"
-                        onPress={() => openScoreEntry(signup)}
-                      >
-                        <Ionicons name="create-outline" size={13} color={colors.accent} />
-                        <Text className="text-[11px] font-semibold text-accent ml-1">Enter Score</Text>
-                      </TouchableOpacity>
-                    )}
+                    {/* Score display + entry button */}
+                    {signup.checked_in && workouts.length > 0 && (() => {
+                      const userScores = scoresByUser.get(signup.user_id);
+                      const hasScore = userScores && userScores.size > 0;
+                      return (
+                        <View className="ml-11 mt-1.5">
+                          {hasScore && workouts.map((w) => {
+                            const stat = userScores.get(w.id);
+                            if (!stat) return null;
+                            return (
+                              <View key={w.id} className="flex-row items-center mb-1">
+                                <View className={`px-1.5 py-0.5 rounded mr-1.5 ${w.format === 'time' ? 'bg-soft' : 'bg-accent-soft'}`}>
+                                  <Text className={`text-[9px] font-bold ${w.format === 'time' ? 'text-ink-soft' : 'text-accent-ink'}`}>
+                                    {w.format === 'time' ? 'TIME' : 'AMRAP'}
+                                  </Text>
+                                </View>
+                                <Text className="text-xs font-semibold text-ink">
+                                  {formatScoreInline(stat, w.format)}
+                                </Text>
+                                {stat.rx_scaled && (
+                                  <Text className="text-[10px] text-ink-muted ml-1.5">
+                                    {stat.rx_scaled === 'rx' ? 'Rx' : 'Scaled'}
+                                  </Text>
+                                )}
+                              </View>
+                            );
+                          })}
+                          {canCheckIn && (
+                            <TouchableOpacity
+                              className="border border-rule rounded-lg py-1.5 px-3 flex-row items-center self-start mt-0.5"
+                              onPress={() => openScoreEntry(signup)}
+                            >
+                              <Ionicons name="create-outline" size={13} color={colors.accent} />
+                              <Text className="text-[11px] font-semibold text-accent ml-1">
+                                {hasScore ? 'Update Score' : 'Enter Score'}
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      );
+                    })()}
                   </View>
                 );
               })}
@@ -715,14 +783,14 @@ export default function OccurrenceDetailScreen() {
         onRequestClose={() => setAddMemberVisible(false)}
       >
         <SafeAreaView className="flex-1 bg-base">
-          <View className="px-4 pt-3 pb-2 border-b border-rule flex-row items-center justify-between">
-            <Text className="text-lg font-bold text-ink">Add Member to Class</Text>
+          <View className="px-4 pt-3 pb-2 border-b border-rule flex-row items-center justify-end">
             <TouchableOpacity onPress={() => setAddMemberVisible(false)}>
               <Ionicons name="close" size={24} color={colors.ink} />
             </TouchableOpacity>
           </View>
 
           <View className="px-4 pt-3">
+            <Text className="text-xl font-bold text-ink mb-3">Add Member to Class</Text>
             <TextInput
               className="border border-rule rounded-lg px-3 py-2.5 text-sm bg-card text-ink"
               placeholder="Search members..."
@@ -740,6 +808,7 @@ export default function OccurrenceDetailScreen() {
           ) : (
             <FlatList
               data={filteredMembers}
+              extraData={memberSearch}
               keyExtractor={(item) => item.user_id}
               contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 40 }}
               ListEmptyComponent={
@@ -791,21 +860,21 @@ export default function OccurrenceDetailScreen() {
         onRequestClose={() => setScoringSignup(null)}
       >
         <SafeAreaView className="flex-1 bg-base">
-          <View className="px-4 pt-3 pb-2 border-b border-rule flex-row items-center justify-between">
-            <View>
-              <Text className="text-lg font-bold text-ink">Enter Score</Text>
-              {scoringSignup && (
-                <Text className="text-sm text-ink-muted mt-0.5">
-                  for {profileName(scoringSignup.profile)}
-                </Text>
-              )}
-            </View>
+          <View className="px-4 pt-3 pb-2 border-b border-rule flex-row items-center justify-end">
             <TouchableOpacity onPress={() => setScoringSignup(null)}>
               <Ionicons name="close" size={24} color={colors.ink} />
             </TouchableOpacity>
           </View>
 
           <ScrollView className="flex-1 px-5 pt-5" contentContainerStyle={{ paddingBottom: 40 }}>
+            <View className="mb-5">
+              <Text className="text-xl font-bold text-ink">Enter Score</Text>
+              {scoringSignup && (
+                <Text className="text-sm text-ink-muted mt-1">
+                  for {profileName(scoringSignup.profile)}
+                </Text>
+              )}
+            </View>
             {workouts.map((workout) => {
               const isTime = workout.format === 'time';
               const formatLabel = isTime ? 'FOR TIME' : 'AMRAP';

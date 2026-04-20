@@ -446,9 +446,6 @@ function Composer({
           <TouchableOpacity onPress={onClose}>
             <Text className="text-sm text-ink-muted">Cancel</Text>
           </TouchableOpacity>
-          <Text className="text-base font-bold text-ink">
-            {mode === 'create' ? 'New Announcement' : 'Edit Announcement'}
-          </Text>
           <TouchableOpacity onPress={handleSubmit} disabled={!canSubmit}>
             <Text
               className={`text-sm font-bold ${canSubmit ? 'text-accent' : 'text-ink-faint'}`}
@@ -463,6 +460,9 @@ function Composer({
           contentContainerStyle={{ padding: 20 }}
           keyboardShouldPersistTaps="handled"
         >
+          <Text className="text-xl font-bold text-ink mb-5">
+            {mode === 'create' ? 'New Announcement' : 'Edit Announcement'}
+          </Text>
           {/* Title */}
           <Text className="text-[11px] font-semibold text-ink-muted uppercase tracking-wider mb-1.5">
             Title

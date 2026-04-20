@@ -570,63 +570,43 @@ export default function ProgramDetailScreen() {
               </View>
             ) : (
               <>
-                {/* Class signups section */}
-                <View className="px-5 pt-4">
-                  <Text className="text-xs font-semibold text-ink-muted uppercase tracking-wider mb-3 ml-1">
-                    Class Attendance
-                  </Text>
-                  {signups.length === 0 ? (
-                    <View className="bg-card border border-rule rounded-xl p-5 items-center mb-5">
-                      <Ionicons name="calendar-outline" size={28} color={colors.inkFaint} />
-                      <Text className="text-sm text-ink-muted mt-2 text-center">
-                        No class sign-ups yet
+                {/* Attendance summary */}
+                <View className="px-5 pt-4 mb-5">
+                  <View className="flex-row gap-3">
+                    <View className="flex-1 bg-card border border-rule rounded-xl p-4 items-center">
+                      <Ionicons name="calendar-outline" size={22} color={colors.accent} />
+                      <Text className="text-2xl font-bold text-ink mt-2">
+                        {signups.filter((s: any) => s.checked_in && !s.occurrence?.is_cancelled).length}
                       </Text>
+                      <Text className="text-xs text-ink-muted mt-0.5">Classes Attended</Text>
                     </View>
-                  ) : (
-                    <View className="mb-5">
-                      {signups.map((signup: any) => {
-                        const occ = signup.occurrence;
-                        if (!occ) return null;
-                        return (
-                          <View
-                            key={signup.id}
-                            className={`bg-card border border-rule rounded-xl p-4 mb-2 ${
-                              occ.is_cancelled ? 'opacity-50' : ''
-                            }`}
-                          >
-                            <View className="flex-row items-start justify-between">
-                              <View className="flex-1 mr-3">
-                                <Text className="text-base font-bold text-ink" numberOfLines={1}>
-                                  {signup.class_name}
-                                  {occ.is_cancelled ? ' (Cancelled)' : ''}
-                                </Text>
-                                <Text className="text-xs text-ink-muted mt-0.5">
-                                  {formatDateLabel(occ.date)}
-                                  {occ.start_time ? ` · ${formatTime(occ.start_time)}` : ''}
-                                </Text>
-                              </View>
-                              <View className="items-end">
-                                {signup.checked_in ? (
-                                  <View className="bg-accent-soft px-2.5 py-1 rounded-full flex-row items-center">
-                                    <Ionicons name="checkmark-circle" size={12} color={colors.accent} />
-                                    <Text className="text-[10px] font-bold text-accent-ink ml-1 uppercase">
-                                      Checked In
-                                    </Text>
-                                  </View>
-                                ) : !occ.is_cancelled ? (
-                                  <View className="bg-soft px-2.5 py-1 rounded-full">
-                                    <Text className="text-[10px] font-bold text-ink-muted uppercase">
-                                      Signed Up
-                                    </Text>
-                                  </View>
-                                ) : null}
-                              </View>
-                            </View>
-                          </View>
-                        );
-                      })}
+                    <View className="flex-1 bg-card border border-rule rounded-xl p-4 items-center">
+                      <Ionicons name="flame-outline" size={22} color={colors.accent} />
+                      <Text className="text-2xl font-bold text-ink mt-2">
+                        {(() => {
+                          const checkedInDates = signups
+                            .filter((s: any) => s.checked_in && s.occurrence?.date && !s.occurrence?.is_cancelled)
+                            .map((s: any) => s.occurrence.date as string);
+                          const uniqueDates = [...new Set(checkedInDates)].sort().reverse();
+                          if (uniqueDates.length === 0) return 0;
+
+                          let streak = 1;
+                          for (let i = 0; i < uniqueDates.length - 1; i++) {
+                            const curr = new Date(uniqueDates[i] + 'T00:00:00');
+                            const prev = new Date(uniqueDates[i + 1] + 'T00:00:00');
+                            const diffDays = (curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24);
+                            if (diffDays <= 1) {
+                              streak++;
+                            } else {
+                              break;
+                            }
+                          }
+                          return streak;
+                        })()}
+                      </Text>
+                      <Text className="text-xs text-ink-muted mt-0.5">Day Streak</Text>
                     </View>
-                  )}
+                  </View>
                 </View>
 
                 {/* Workout results section */}

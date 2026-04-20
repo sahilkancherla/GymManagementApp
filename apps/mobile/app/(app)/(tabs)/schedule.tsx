@@ -30,6 +30,7 @@ type Occurrence = {
     name: string;
     capacity: number | null;
     duration_minutes: number | null;
+    program_id: string | null;
   } | null;
   coach?: {
     first_name: string | null;
@@ -177,6 +178,8 @@ export default function ScheduleScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  // Track which occurrence IDs the user has a workout result for
+  const [occIdsWithResult, setOccIdsWithResult] = useState<Set<string>>(new Set());
 
   const weekDays = useMemo(() => buildWeekDays(weekStart), [weekStart]);
   const monthGrid = useMemo(
@@ -234,12 +237,58 @@ export default function ScheduleScreen() {
         apiFetch(`/gyms/${gymId}/occurrences?start=${selectedDate}&end=${selectedDate}`),
         apiFetch(`/gyms/${gymId}/classes`),
       ]);
-      setCurrentUserId(user?.id || null);
-      setOccurrences((occData || []).filter((o: any) => o.class));
+      const userId = user?.id || null;
+      setCurrentUserId(userId);
+      const filteredOccs: Occurrence[] = (occData || []).filter((o: any) => o.class);
+      setOccurrences(filteredOccs);
       setGymClasses(classData || []);
+
+      // Fetch workouts for each unique program_id on this date, then check user stats
+      if (userId) {
+        const programIds = Array.from(
+          new Set(filteredOccs.map((o) => o.class?.program_id).filter(Boolean) as string[])
+        );
+        const resultSet = new Set<string>();
+        await Promise.all(
+          programIds.map(async (pid) => {
+            try {
+              const workouts = await apiFetch(
+                `/programs/${pid}/workouts?start=${selectedDate}&end=${selectedDate}`
+              );
+              if (!workouts || workouts.length === 0) return;
+              // For each workout, check if the current user has stats
+              await Promise.all(
+                (workouts as any[]).map(async (w: any) => {
+                  try {
+                    const stats = await apiFetch(`/workouts/${w.id}/stats`);
+                    const hasStat = (stats || []).some(
+                      (s: any) => s.user_id === userId && (s.time_seconds != null || s.amrap_rounds != null)
+                    );
+                    if (hasStat) {
+                      // Find which occurrences this workout applies to
+                      const classIds: string[] = w.class_ids || [];
+                      for (const occ of filteredOccs) {
+                        if (occ.class?.program_id === pid) {
+                          if (classIds.length === 0 || classIds.includes(occ.class!.id)) {
+                            resultSet.add(occ.id);
+                          }
+                        }
+                      }
+                    }
+                  } catch {}
+                })
+              );
+            } catch {}
+          })
+        );
+        setOccIdsWithResult(resultSet);
+      } else {
+        setOccIdsWithResult(new Set());
+      }
     } catch {
       setOccurrences([]);
       setGymClasses([]);
+      setOccIdsWithResult(new Set());
     } finally {
       setLoading(false);
     }
@@ -581,9 +630,12 @@ export default function ScheduleScreen() {
               if (item.type === 'occurrence') {
                 const occ = item.data;
                 const signups = occ.signups || [];
-                const signedUp = currentUserId
-                  ? signups.some((s) => s.user_id === currentUserId)
-                  : false;
+                const userSignup = currentUserId
+                  ? signups.find((s) => s.user_id === currentUserId)
+                  : null;
+                const signedUp = !!userSignup;
+                const isCheckedIn = !!userSignup?.checked_in;
+                const hasResult = occIdsWithResult.has(occ.id);
                 const isCancelled = !!occ.is_cancelled;
                 const capacity = occ.class?.capacity ?? null;
                 const atCapacity = capacity != null && signups.length >= capacity;
@@ -651,7 +703,19 @@ export default function ScheduleScreen() {
                               <Text className="text-[10px] font-bold text-danger uppercase">Cancelled</Text>
                             </View>
                           )}
-                          {signedUp && !isCancelled && (
+                          {signedUp && !isCancelled && hasResult && (
+                            <View className="bg-accent-soft px-2 py-0.5 rounded ml-2 flex-row items-center">
+                              <Ionicons name="trophy" size={11} color={colors.accent} />
+                              <Text className="text-[10px] font-bold text-accent-ink ml-0.5 uppercase">Went</Text>
+                            </View>
+                          )}
+                          {signedUp && !isCancelled && !hasResult && isCheckedIn && (
+                            <View className="bg-accent-soft px-2 py-0.5 rounded ml-2 flex-row items-center">
+                              <Ionicons name="checkmark-circle" size={11} color={colors.accent} />
+                              <Text className="text-[10px] font-bold text-accent-ink ml-0.5 uppercase">Checked In</Text>
+                            </View>
+                          )}
+                          {signedUp && !isCancelled && !hasResult && !isCheckedIn && (
                             <View className="bg-accent-soft px-2 py-0.5 rounded ml-2 flex-row items-center">
                               <Ionicons name="checkmark-circle" size={11} color={colors.accent} />
                               <Text className="text-[10px] font-bold text-accent-ink ml-0.5 uppercase">Going</Text>
@@ -699,7 +763,7 @@ export default function ScheduleScreen() {
                           </View>
                         )}
 
-                        {!isCancelled && isMember && (
+                        {!isCancelled && isMember && !(signedUp && (isCheckedIn || hasResult)) && (
                           <View className="mt-3">
                             {signedUp ? (
                               <TouchableOpacity
