@@ -164,6 +164,32 @@ async function replaceWorkoutClasses(workoutId: string, classIds: string[]) {
   if (insError) throw insError;
 }
 
+// Lazily create class occurrences for each class on the workout's date.
+// Uses upsert with ignoreDuplicates so existing occurrences are untouched.
+async function ensureOccurrencesForWorkout(classIds: string[], workoutDate: string) {
+  if (classIds.length === 0) return;
+
+  // Fetch class details (start_time, coach_id) for the linked classes
+  const { data: classes, error } = await supabase
+    .from('classes')
+    .select('id, start_time, coach_id')
+    .in('id', classIds);
+  if (error) throw error;
+  if (!classes || classes.length === 0) return;
+
+  const occurrenceRows = classes.map((cls: any) => ({
+    class_id: cls.id,
+    date: workoutDate,
+    start_time: cls.start_time,
+    coach_id: cls.coach_id,
+  }));
+
+  const { error: upsertError } = await supabase
+    .from('class_occurrences')
+    .upsert(occurrenceRows, { onConflict: 'class_id,date', ignoreDuplicates: true });
+  if (upsertError) throw upsertError;
+}
+
 // Create workout (admin only — caller must verify admin role)
 workoutRoutes.post('/programs/:programId/workouts', requireAuth, validate(createWorkoutSchema), async (req, res, next) => {
   try {
@@ -179,6 +205,7 @@ workoutRoutes.post('/programs/:programId/workouts', requireAuth, validate(create
     const classIds: string[] = Array.isArray(class_ids) ? class_ids : [];
     if (classIds.length > 0) {
       await replaceWorkoutClasses(data.id, classIds);
+      await ensureOccurrencesForWorkout(classIds, data.date);
     }
 
     res.status(201).json({ ...data, class_ids: classIds });
@@ -205,6 +232,7 @@ workoutRoutes.put('/workouts/:workoutId', requireAuth, validate(updateWorkoutSch
     if (Array.isArray(class_ids)) {
       classIds = class_ids;
       await replaceWorkoutClasses(workoutId, class_ids);
+      await ensureOccurrencesForWorkout(class_ids, data.date);
     } else {
       const { data: links, error: linksError } = await supabase
         .from('workout_classes')
