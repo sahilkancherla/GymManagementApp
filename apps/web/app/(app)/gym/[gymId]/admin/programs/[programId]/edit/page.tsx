@@ -21,6 +21,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import { WORKOUT_TAGS } from "@acuo/shared";
 import { apiFetch } from "@/lib/api";
 import { BackButton } from "@/components/BackButton";
 import { ClassCalendar } from "@/components/ClassCalendar";
@@ -2380,6 +2381,48 @@ function ClassScopePicker({
   );
 }
 
+const TAG_LABELS: Record<string, string> = {
+  weightlifting: "Weightlifting",
+  benchmark: "Benchmark",
+  cardio: "Cardio",
+};
+
+function WorkoutTagPicker({
+  selectedTags,
+  toggleTag,
+}: {
+  selectedTags: string[];
+  toggleTag: (tag: string) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <label className="text-[11px] tracking-[0.12em] uppercase text-[var(--color-ink-muted)] font-medium">
+        Tags <span className="normal-case tracking-normal text-[var(--color-ink-muted)]">(optional)</span>
+      </label>
+      <div className="flex flex-wrap gap-1.5">
+        {WORKOUT_TAGS.map((tag) => {
+          const checked = selectedTags.includes(tag);
+          return (
+            <button
+              key={tag}
+              type="button"
+              onClick={() => toggleTag(tag)}
+              className={`inline-flex items-center gap-1 h-7 px-2.5 rounded-full text-xs font-medium border transition-colors ${
+                checked
+                  ? "border-[var(--color-accent)] bg-[var(--color-accent-soft)] text-[var(--color-accent-ink)]"
+                  : "border-[var(--color-rule)] text-[var(--color-ink-soft)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent-ink)]"
+              }`}
+            >
+              {checked && <Check size={11} strokeWidth={2.5} />}
+              {TAG_LABELS[tag] || tag}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function WorkoutItem({
   workout,
   order,
@@ -2399,6 +2442,7 @@ function WorkoutItem({
 }) {
   const dayClasses = useMemo(() => classesForDateIso(date, classes), [date, classes]);
   const initialClassIds: string[] = workout.class_ids || [];
+  const initialTags: string[] = workout.tags || [];
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
     title: workout.title,
@@ -2406,9 +2450,9 @@ function WorkoutItem({
     format: workout.format,
     sort_order: workout.sort_order || 0,
   });
-  // applyToAll removed — workouts must target at least one class
   const [selectedClassIds, setSelectedClassIds] =
     useState<string[]>(initialClassIds);
+  const [selectedTags, setSelectedTags] = useState<string[]>(initialTags);
   const [saving, setSaving] = useState(false);
 
   function toggleClass(classId: string) {
@@ -2416,6 +2460,14 @@ function WorkoutItem({
       prev.includes(classId)
         ? prev.filter((id) => id !== classId)
         : [...prev, classId],
+    );
+  }
+
+  function toggleTag(tag: string) {
+    setSelectedTags((prev) =>
+      prev.includes(tag)
+        ? prev.filter((t) => t !== tag)
+        : [...prev, tag],
     );
   }
 
@@ -2430,6 +2482,7 @@ function WorkoutItem({
           format: form.format,
           sort_order: form.sort_order,
           class_ids: selectedClassIds,
+          tags: selectedTags,
         }),
       });
       setEditing(false);
@@ -2510,6 +2563,10 @@ function WorkoutItem({
             selectedClassIds={selectedClassIds}
             toggleClass={toggleClass}
           />
+          <WorkoutTagPicker
+            selectedTags={selectedTags}
+            toggleTag={toggleTag}
+          />
           <div className="flex gap-2 justify-end pt-1">
             <button
               onClick={() => {
@@ -2520,6 +2577,7 @@ function WorkoutItem({
                   sort_order: workout.sort_order || 0,
                 });
                 setSelectedClassIds(initialClassIds);
+                setSelectedTags(initialTags);
                 setEditing(false);
               }}
               className="h-9 px-3 rounded-md text-sm text-[var(--color-ink-soft)] hover:bg-[var(--color-bg-soft)]"
@@ -2552,6 +2610,14 @@ function WorkoutItem({
             <FormatIcon size={10} strokeWidth={2} />
             {workout.format}
           </span>
+          {(workout.tags || []).map((tag: string) => (
+            <span
+              key={tag}
+              className="inline-flex items-center h-5 px-1.5 rounded bg-[var(--color-accent-soft)] text-[10px] font-semibold capitalize text-[var(--color-accent-ink)]"
+            >
+              {TAG_LABELS[tag] || tag}
+            </span>
+          ))}
           <h4 className="font-display text-[14.5px] font-semibold tracking-tight leading-tight truncate">
             {workout.title}
           </h4>
@@ -2615,6 +2681,7 @@ function AddWorkoutForm({
     sort_order: nextOrder,
   });
   const [selectedClassIds, setSelectedClassIds] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const dayClasses = useMemo(() => classesForDateIso(date, classes), [date, classes]);
 
@@ -2624,9 +2691,16 @@ function AddWorkoutForm({
     );
   }
 
+  function toggleTag(tag: string) {
+    setSelectedTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
+    );
+  }
+
   function resetForm() {
     setForm({ title: "", description: "", format: "time", sort_order: nextOrder + 1 });
     setSelectedClassIds([]);
+    setSelectedTags([]);
   }
 
   async function handleCreate() {
@@ -2640,6 +2714,7 @@ function AddWorkoutForm({
           description: form.description || null,
           date,
           class_ids: selectedClassIds,
+          tags: selectedTags,
         }),
       });
       resetForm();
@@ -2724,6 +2799,10 @@ function AddWorkoutForm({
           classes={dayClasses}
           selectedClassIds={selectedClassIds}
           toggleClass={toggleClass}
+        />
+        <WorkoutTagPicker
+          selectedTags={selectedTags}
+          toggleTag={toggleTag}
         />
         <div className="flex gap-2 justify-end pt-1">
           <button

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { WORKOUT_TAGS } from '../constants';
 
 export const createWorkoutSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD'),
@@ -9,6 +10,7 @@ export const createWorkoutSchema = z.object({
   // Empty array (or omitted) = applies to all classes in the program.
   // Non-empty array = applies only to the listed class ids.
   class_ids: z.array(z.string().uuid()).optional(),
+  tags: z.array(z.enum(WORKOUT_TAGS)).optional().default([]),
 });
 
 export const updateWorkoutSchema = createWorkoutSchema.partial();

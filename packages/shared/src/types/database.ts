@@ -224,6 +224,7 @@ export interface Database {
           description: string | null;
           format: 'time' | 'amrap';
           sort_order: number;
+          tags: string[];
           created_at: string;
           updated_at: string;
         };
@@ -235,6 +236,7 @@ export interface Database {
           description?: string | null;
           format: 'time' | 'amrap';
           sort_order?: number;
+          tags?: string[];
           created_at?: string;
           updated_at?: string;
         };
@@ -244,6 +246,7 @@ export interface Database {
           description?: string | null;
           format?: 'time' | 'amrap';
           sort_order?: number;
+          tags?: string[];
           updated_at?: string;
         };
       };

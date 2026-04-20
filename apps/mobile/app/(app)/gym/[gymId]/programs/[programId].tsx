@@ -129,7 +129,7 @@ export default function ProgramDetailScreen() {
   const [historyLoading, setHistoryLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
 
-  // Calendar state
+  // Calendar state (schedule tab)
   const [viewMode, setViewMode] = useState<ViewMode>('week');
   const [selectedDate, setSelectedDate] = useState(todayIso());
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
@@ -138,11 +138,42 @@ export default function ProgramDetailScreen() {
     return { year: now.getFullYear(), month: now.getMonth() };
   });
 
+  // History tab state
+  type HistoryFilter = 'week' | 'month' | 'all';
+  const [histFilter, setHistFilter] = useState<HistoryFilter>('week');
+  const [histVisibleCount, setHistVisibleCount] = useState(10);
+
   const weekDays = useMemo(() => buildWeekDays(weekStart), [weekStart]);
   const monthGrid = useMemo(
     () => buildMonthGrid(monthYear.year, monthYear.month),
     [monthYear.year, monthYear.month],
   );
+
+  // Set of ISO dates the user attended (checked in)
+  const attendedDates = useMemo(() => {
+    const dates = new Set<string>();
+    for (const s of signups) {
+      if ((s as any).checked_in && (s as any).occurrence?.date && !(s as any).occurrence?.is_cancelled) {
+        dates.add((s as any).occurrence.date as string);
+      }
+    }
+    return dates;
+  }, [signups]);
+
+  // Filtered history based on selected time range
+  const filteredHistory = useMemo(() => {
+    if (histFilter === 'all') return history;
+    const now = new Date();
+    let cutoff: string;
+    if (histFilter === 'week') {
+      const ws = getWeekStart(now);
+      cutoff = toIso(ws);
+    } else {
+      // month
+      cutoff = toIso(new Date(now.getFullYear(), now.getMonth(), 1));
+    }
+    return history.filter((w: any) => w.date >= cutoff);
+  }, [history, histFilter]);
 
   const programName = program?.name || 'Program';
 
@@ -244,6 +275,7 @@ export default function ProgramDetailScreen() {
     setWeekStart(getWeekStart(now));
     setMonthYear({ year: now.getFullYear(), month: now.getMonth() });
   }
+
 
   return (
     <>
@@ -559,24 +591,24 @@ export default function ProgramDetailScreen() {
 
         {/* ========== HISTORY TAB ========== */}
         {pageTab === 'history' && (
-          <ScrollView
-            className="flex-1"
-            contentContainerStyle={{ paddingBottom: 40 }}
-            showsVerticalScrollIndicator={false}
-          >
+          <>
             {historyLoading ? (
-              <View className="items-center py-16">
+              <View className="flex-1 items-center justify-center">
                 <ActivityIndicator size="large" color={colors.accent} />
               </View>
             ) : (
-              <>
-                {/* Attendance summary */}
-                <View className="px-5 pt-4 mb-5">
+              <ScrollView
+                className="flex-1"
+                contentContainerStyle={{ paddingBottom: 40 }}
+                showsVerticalScrollIndicator={false}
+              >
+                {/* Attendance summary cards */}
+                <View className="px-5 pt-4 mb-3">
                   <View className="flex-row gap-3">
                     <View className="flex-1 bg-card border border-rule rounded-xl p-4 items-center">
                       <Ionicons name="calendar-outline" size={22} color={colors.accent} />
                       <Text className="text-2xl font-bold text-ink mt-2">
-                        {signups.filter((s: any) => s.checked_in && !s.occurrence?.is_cancelled).length}
+                        {attendedDates.size}
                       </Text>
                       <Text className="text-xs text-ink-muted mt-0.5">Classes Attended</Text>
                     </View>
@@ -584,22 +616,14 @@ export default function ProgramDetailScreen() {
                       <Ionicons name="flame-outline" size={22} color={colors.accent} />
                       <Text className="text-2xl font-bold text-ink mt-2">
                         {(() => {
-                          const checkedInDates = signups
-                            .filter((s: any) => s.checked_in && s.occurrence?.date && !s.occurrence?.is_cancelled)
-                            .map((s: any) => s.occurrence.date as string);
-                          const uniqueDates = [...new Set(checkedInDates)].sort().reverse();
+                          const uniqueDates = [...attendedDates].sort().reverse();
                           if (uniqueDates.length === 0) return 0;
-
                           let streak = 1;
                           for (let i = 0; i < uniqueDates.length - 1; i++) {
                             const curr = new Date(uniqueDates[i] + 'T00:00:00');
                             const prev = new Date(uniqueDates[i + 1] + 'T00:00:00');
                             const diffDays = (curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24);
-                            if (diffDays <= 1) {
-                              streak++;
-                            } else {
-                              break;
-                            }
+                            if (diffDays <= 1) { streak++; } else { break; }
                           }
                           return streak;
                         })()}
@@ -609,90 +633,135 @@ export default function ProgramDetailScreen() {
                   </View>
                 </View>
 
-                {/* Workout results section */}
+                {/* Filter toggle (week / month / all) */}
+                <View className="flex-row mx-5 mb-3 bg-soft rounded-xl p-1">
+                  {(['week', 'month', 'all'] as const).map((mode) => (
+                    <TouchableOpacity
+                      key={mode}
+                      onPress={() => {
+                        setHistFilter(mode);
+                        setHistVisibleCount(10);
+                      }}
+                      className={`flex-1 py-2 rounded-lg items-center ${
+                        histFilter === mode ? 'bg-card' : ''
+                      }`}
+                      style={histFilter === mode ? {
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 1 },
+                        shadowOpacity: 0.08,
+                        shadowRadius: 2,
+                        elevation: 2,
+                      } : undefined}
+                    >
+                      <Text
+                        className={`text-xs font-semibold capitalize ${
+                          histFilter === mode ? 'text-ink' : 'text-ink-muted'
+                        }`}
+                      >
+                        {mode === 'all' ? 'All' : mode === 'week' ? 'This Week' : 'This Month'}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                {/* Workout results list */}
                 <View className="px-5">
                   <Text className="text-xs font-semibold text-ink-muted uppercase tracking-wider mb-3 ml-1">
-                    Workout Results
+                    Workout Results ({filteredHistory.length})
                   </Text>
-                  {history.length === 0 ? (
+                  {filteredHistory.length === 0 ? (
                     <View className="bg-card border border-rule rounded-xl p-5 items-center">
                       <Ionicons name="barbell-outline" size={28} color={colors.inkFaint} />
                       <Text className="text-sm text-ink-muted mt-2 text-center">
-                        No completed workouts yet
+                        No workout results {histFilter === 'week' ? 'this week' : histFilter === 'month' ? 'this month' : 'yet'}
                       </Text>
                     </View>
                   ) : (
-                    history.map((item) => {
-                      const isTime = item.format === 'time';
-                      return (
-                        <TouchableOpacity
-                          key={item.id}
-                          className="bg-card border border-rule rounded-xl p-4 mb-2"
-                          activeOpacity={0.7}
-                          onPress={() =>
-                            router.push(
-                              `/(app)/workout/${item.id}/leaderboard?gymId=${gymId}` as any
-                            )
-                          }
-                        >
-                          <View className="flex-row items-start justify-between">
-                            <View className="flex-1 mr-3">
-                              <View className="flex-row items-center mb-1">
-                                <View
-                                  className={`px-2 py-0.5 rounded mr-2 ${
-                                    isTime ? 'bg-soft' : 'bg-accent-soft'
-                                  }`}
-                                >
-                                  <Text
-                                    className={`text-[10px] font-bold tracking-wide ${
-                                      isTime ? 'text-ink-soft' : 'text-accent-ink'
+                    <>
+                      {filteredHistory.slice(0, histVisibleCount).map((item: any) => {
+                        const isTime = item.format === 'time';
+                        return (
+                          <TouchableOpacity
+                            key={item.id}
+                            className="bg-card border border-rule rounded-xl p-4 mb-2"
+                            activeOpacity={0.7}
+                            onPress={() =>
+                              router.push(
+                                `/(app)/workout/${item.id}/leaderboard?gymId=${gymId}` as any
+                              )
+                            }
+                          >
+                            <View className="flex-row items-start justify-between">
+                              <View className="flex-1 mr-3">
+                                <View className="flex-row items-center mb-1">
+                                  <View
+                                    className={`px-2 py-0.5 rounded mr-2 ${
+                                      isTime ? 'bg-soft' : 'bg-accent-soft'
                                     }`}
                                   >
-                                    {isTime ? 'TIME' : 'AMRAP'}
-                                  </Text>
-                                </View>
-                                {item.my_stat?.rx_scaled && (
-                                  <View className={`px-2 py-0.5 rounded ${
-                                    item.my_stat.rx_scaled === 'rx' ? 'bg-accent-soft' : 'bg-soft'
-                                  }`}>
-                                    <Text className={`text-[10px] font-bold uppercase ${
-                                      item.my_stat.rx_scaled === 'rx' ? 'text-accent-ink' : 'text-ink-soft'
-                                    }`}>
-                                      {item.my_stat.rx_scaled}
+                                    <Text
+                                      className={`text-[10px] font-bold tracking-wide ${
+                                        isTime ? 'text-ink-soft' : 'text-accent-ink'
+                                      }`}
+                                    >
+                                      {isTime ? 'TIME' : 'AMRAP'}
                                     </Text>
                                   </View>
-                                )}
+                                  {item.my_stat?.rx_scaled && (
+                                    <View className={`px-2 py-0.5 rounded ${
+                                      item.my_stat.rx_scaled === 'rx' ? 'bg-accent-soft' : 'bg-soft'
+                                    }`}>
+                                      <Text className={`text-[10px] font-bold uppercase ${
+                                        item.my_stat.rx_scaled === 'rx' ? 'text-accent-ink' : 'text-ink-soft'
+                                      }`}>
+                                        {item.my_stat.rx_scaled}
+                                      </Text>
+                                    </View>
+                                  )}
+                                </View>
+                                <Text className="text-base font-bold text-ink" numberOfLines={1}>
+                                  {item.title}
+                                </Text>
+                                <Text className="text-xs text-ink-muted mt-0.5">
+                                  {formatDateLabel(item.date)}
+                                </Text>
                               </View>
-                              <Text className="text-base font-bold text-ink" numberOfLines={1}>
-                                {item.title}
-                              </Text>
-                              <Text className="text-xs text-ink-muted mt-0.5">
-                                {formatDateLabel(item.date)}
-                              </Text>
+                              <View className="items-end">
+                                <Text className="text-lg font-bold text-ink">
+                                  {formatStatResult(item.my_stat, item.format)}
+                                </Text>
+                                <Text className="text-[10px] text-ink-muted mt-0.5">
+                                  {isTime ? 'time' : 'rounds + reps'}
+                                </Text>
+                              </View>
                             </View>
-                            <View className="items-end">
-                              <Text className="text-lg font-bold text-ink">
-                                {formatStatResult(item.my_stat, item.format)}
-                              </Text>
-                              <Text className="text-[10px] text-ink-muted mt-0.5">
-                                {isTime ? 'time' : 'rounds + reps'}
-                              </Text>
+                            {/* Leaderboard hint */}
+                            <View className="flex-row items-center justify-end mt-2">
+                              <Ionicons name="trophy-outline" size={12} color={colors.inkMuted} />
+                              <Text className="text-[11px] text-ink-muted ml-1 mr-0.5">Leaderboard</Text>
+                              <Ionicons name="chevron-forward" size={12} color={colors.inkMuted} />
                             </View>
-                          </View>
-                          {/* Leaderboard hint */}
-                          <View className="flex-row items-center justify-end mt-2">
-                            <Ionicons name="trophy-outline" size={12} color={colors.inkMuted} />
-                            <Text className="text-[11px] text-ink-muted ml-1 mr-0.5">Leaderboard</Text>
-                            <Ionicons name="chevron-forward" size={12} color={colors.inkMuted} />
-                          </View>
+                          </TouchableOpacity>
+                        );
+                      })}
+
+                      {/* Show More button */}
+                      {histVisibleCount < filteredHistory.length && (
+                        <TouchableOpacity
+                          className="bg-soft border border-rule rounded-xl py-3 items-center mt-1"
+                          onPress={() => setHistVisibleCount((c) => c + 10)}
+                        >
+                          <Text className="text-sm font-semibold text-ink-muted">
+                            Show More ({filteredHistory.length - histVisibleCount} remaining)
+                          </Text>
                         </TouchableOpacity>
-                      );
-                    })
+                      )}
+                    </>
                   )}
                 </View>
-              </>
+              </ScrollView>
             )}
-          </ScrollView>
+          </>
         )}
       </SafeAreaView>
     </>
@@ -811,8 +880,8 @@ function WorkoutCard({
 
   return (
     <View className="bg-card border border-rule rounded-xl p-4 mb-4">
-      {/* Format badge + title */}
-      <View className="flex-row items-center mb-1">
+      {/* Format badge + tags */}
+      <View className="flex-row items-center flex-wrap mb-1">
         <View
           className={`px-2 py-0.5 rounded mr-2 ${
             isTime ? 'bg-soft' : 'bg-accent-soft'
@@ -826,6 +895,13 @@ function WorkoutCard({
             {formatLabel}
           </Text>
         </View>
+        {(workout.tags || []).map((tag: string) => (
+          <View key={tag} className="px-2 py-0.5 rounded bg-accent-soft mr-1.5">
+            <Text className="text-[10px] font-bold tracking-wide text-accent-ink capitalize">
+              {tag}
+            </Text>
+          </View>
+        ))}
       </View>
 
       <Text className="text-base font-bold text-ink mt-1">{workout.title}</Text>
