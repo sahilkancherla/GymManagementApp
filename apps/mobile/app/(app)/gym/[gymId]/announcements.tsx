@@ -13,11 +13,13 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, Stack } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { apiFetch } from '../../../../lib/api';
 import { colors } from '../../../../lib/theme';
+import BackButton from '../../../../components/BackButton';
 
 type Announcement = {
   id: string;
@@ -166,27 +168,25 @@ export default function AnnouncementsScreen() {
 
   return (
     <>
-      <Stack.Screen
-        options={{
-          title: 'Announcements',
-          headerShown: true,
-          headerStyle: { backgroundColor: colors.bgBase },
-          headerTintColor: colors.accent,
-          headerTitleStyle: { color: colors.ink, fontWeight: '600', fontSize: 17 },
-          headerRight: () =>
-            canManage ? (
-              <TouchableOpacity
-                onPress={() => {
-                  setEditing(null);
-                  setComposerOpen(true);
-                }}
-                className="mr-1"
-              >
-                <Ionicons name="add-circle" size={26} color={colors.accent} />
-              </TouchableOpacity>
-            ) : null,
-        }}
-      />
+      <Stack.Screen options={{ headerShown: false }} />
+      <SafeAreaView className="flex-1 bg-base" edges={['top']}>
+        {/* Custom header */}
+        <View className="px-4 pt-1 pb-2 border-b border-rule bg-base flex-row items-center justify-between">
+          <View>
+            <BackButton label="Back" />
+            <Text className="text-xl font-bold text-ink px-1">Announcements</Text>
+          </View>
+          {canManage && (
+            <TouchableOpacity
+              onPress={() => {
+                setEditing(null);
+                setComposerOpen(true);
+              }}
+            >
+              <Ionicons name="add-circle" size={26} color={colors.accent} />
+            </TouchableOpacity>
+          )}
+        </View>
 
       <View className="flex-1 bg-base">
         {loading ? (
@@ -343,6 +343,7 @@ export default function AnnouncementsScreen() {
           }}
         />
       </View>
+      </SafeAreaView>
     </>
   );
 }

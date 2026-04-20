@@ -6,11 +6,13 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { apiFetch } from '../../../../lib/api';
 import { supabase } from '../../../../lib/supabase';
 import { colors } from '../../../../lib/theme';
+import BackButton from '../../../../components/BackButton';
 
 type GenderFilter = 'all' | 'male' | 'female';
 
@@ -161,15 +163,14 @@ export default function LeaderboardScreen() {
 
   return (
     <>
-      <Stack.Screen
-        options={{
-          title: 'Leaderboard',
-          headerShown: true,
-          headerStyle: { backgroundColor: colors.bgBase },
-          headerTintColor: colors.accent,
-          headerTitleStyle: { color: colors.ink, fontWeight: '600', fontSize: 17 },
-        }}
-      />
+      <Stack.Screen options={{ headerShown: false }} />
+      <SafeAreaView className="flex-1 bg-base" edges={['top']}>
+        {/* Custom header */}
+        <View className="px-4 pt-1 pb-2 border-b border-rule bg-base">
+          <BackButton label="Back" />
+          <Text className="text-xl font-bold text-ink px-1">Leaderboard</Text>
+        </View>
+
       <View className="flex-1 bg-base">
         {loading ? (
           <View className="flex-1 items-center justify-center">
@@ -262,6 +263,7 @@ export default function LeaderboardScreen() {
           />
         )}
       </View>
+      </SafeAreaView>
     </>
   );
 }

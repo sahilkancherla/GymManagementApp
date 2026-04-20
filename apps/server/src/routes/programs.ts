@@ -9,18 +9,71 @@ import {
   updateEnrollmentSchema,
 } from '@acuo/shared';
 import { supabase } from '../supabase';
+import { AppError } from '../middleware/errors';
 
 export const programRoutes = Router();
+
+/**
+ * Check whether a user holds an active subscription that grants access to a
+ * specific program. Returns true when:
+ *   - the program has linked plans (via plan_programs) AND the user has an
+ *     active subscription to one of them, OR
+ *   - the program has linked plans AND the user has an active subscription to
+ *     a gym-wide plan (one with no program links at all), OR
+ *   - the program has NO linked plans (open to any member).
+ */
+async function userCanAccessProgram(
+  userId: string,
+  gymId: string,
+  programId: string,
+): Promise<boolean> {
+  const { data: planLinks, error: plError } = await supabase
+    .from('plan_programs')
+    .select('plan_id')
+    .eq('program_id', programId);
+  if (plError) throw plError;
+
+  // No plan restrictions on this program — open to any member
+  if (!planLinks || planLinks.length === 0) return true;
+
+  const allowedPlanIds = new Set(planLinks.map((l: any) => l.plan_id));
+
+  // Get all user's active subscriptions at this gym
+  const { data: subs, error: subsError } = await supabase
+    .from('subscriptions')
+    .select('plan_id')
+    .eq('user_id', userId)
+    .eq('gym_id', gymId)
+    .eq('status', 'active');
+  if (subsError) throw subsError;
+  if (!subs || subs.length === 0) return false;
+
+  const userPlanIds = subs.map((s: any) => s.plan_id);
+
+  // Direct match: user has a subscription to a plan linked to this program
+  if (userPlanIds.some((pid: string) => allowedPlanIds.has(pid))) return true;
+
+  // Gym-wide plan: user has a subscription to a plan with NO program links
+  const { data: allLinks, error: allError } = await supabase
+    .from('plan_programs')
+    .select('plan_id')
+    .in('plan_id', userPlanIds);
+  if (allError) throw allError;
+
+  const plansWithLinks = new Set((allLinks || []).map((l: any) => l.plan_id));
+  return userPlanIds.some((pid: string) => !plansWithLinks.has(pid));
+}
 
 // List programs for a gym
 programRoutes.get('/gyms/:gymId/programs', requireAuth, requireGymMember(), async (req, res, next) => {
   try {
     const userId = (req as AuthenticatedRequest).user!.id;
+    const gymId = req.params.gymId as string;
 
     const { data, error } = await supabase
       .from('programs')
       .select('*, program_enrollments(count)')
-      .eq('gym_id', req.params.gymId)
+      .eq('gym_id', gymId)
       .order('name');
 
     if (error) throw error;
@@ -38,10 +91,16 @@ programRoutes.get('/gyms/:gymId/programs', requireAuth, requireGymMember(), asyn
       enrolledSet = new Set((enrollments || []).map((e: any) => e.program_id));
     }
 
-    const shaped = (data || []).map((p: any) => ({
+    // Check eligibility for each program
+    const eligibilityChecks = await Promise.all(
+      (data || []).map((p: any) => userCanAccessProgram(userId, gymId, p.id)),
+    );
+
+    const shaped = (data || []).map((p: any, i: number) => ({
       ...p,
       enrollment_count: p.program_enrollments?.[0]?.count ?? 0,
       user_enrolled: enrolledSet.has(p.id),
+      user_eligible: eligibilityChecks[i],
       program_enrollments: undefined,
     }));
 
@@ -105,9 +164,18 @@ programRoutes.delete('/gyms/:gymId/programs/:programId', requireAuth, requireGym
 programRoutes.post('/gyms/:gymId/programs/:programId/enroll', requireAuth, requireGymMember(), async (req, res, next) => {
   try {
     const { user } = req as AuthenticatedRequest;
+    const gymId = req.params.gymId as string;
+    const programId = req.params.programId as string;
+
+    // Plan-based access control: check user holds a qualifying subscription
+    const eligible = await userCanAccessProgram(user.id, gymId, programId);
+    if (!eligible) {
+      throw new AppError(403, 'You do not hold an active membership that includes this program');
+    }
+
     const { data, error } = await supabase
       .from('program_enrollments')
-      .insert({ program_id: req.params.programId, user_id: user.id, status: 'active' })
+      .insert({ program_id: programId, user_id: user.id, status: 'active' })
       .select()
       .single();
 

@@ -612,6 +612,31 @@ gymRoutes.post('/gyms/:gymId/join', requireAuth, async (req, res, next) => {
   }
 });
 
+// Get current user's active subscriptions at a gym
+gymRoutes.get(
+  '/gyms/:gymId/my-subscriptions',
+  requireAuth,
+  async (req, res, next) => {
+    try {
+      const { user } = req as AuthenticatedRequest;
+      const { gymId } = req.params;
+
+      const { data, error } = await supabase
+        .from('subscriptions')
+        .select('id, status, period_start, period_end, classes_used, created_at, plan:plans(id, name, price_cents, type, class_count)')
+        .eq('gym_id', gymId)
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      res.json(data || []);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
 // Assign a plan (subscription) to a member (admin only)
 gymRoutes.post(
   '/gyms/:gymId/members/:userId/subscriptions',

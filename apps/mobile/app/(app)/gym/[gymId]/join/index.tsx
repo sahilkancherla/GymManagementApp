@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { apiFetch } from '../../../../../lib/api';
 import { colors } from '../../../../../lib/theme';
+import BackButton from '../../../../../components/BackButton';
 
 export default function JoinGymScreen() {
   const { gymId } = useLocalSearchParams();
@@ -36,18 +37,28 @@ export default function JoinGymScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-base" edges={['top']}>
-        <View className="flex-1 justify-center items-center">
-          <ActivityIndicator color={colors.accent} />
-        </View>
-      </SafeAreaView>
+      <>
+        <Stack.Screen options={{ headerShown: false }} />
+        <SafeAreaView className="flex-1 bg-base" edges={['top']}>
+          <View className="px-4 pt-1 pb-2 border-b border-rule bg-base">
+            <BackButton label="Back" />
+            <Text className="text-xl font-bold text-ink px-1">Membership Plans</Text>
+          </View>
+          <View className="flex-1 justify-center items-center">
+            <ActivityIndicator color={colors.accent} />
+          </View>
+        </SafeAreaView>
+      </>
     );
   }
 
   return (
+    <>
+    <Stack.Screen options={{ headerShown: false }} />
     <SafeAreaView className="flex-1 bg-base" edges={['top']}>
-      <View className="px-5 pt-4 pb-2">
-        <Text className="text-xl font-bold text-ink">Membership Plans</Text>
+      <View className="px-4 pt-1 pb-2 border-b border-rule bg-base">
+        <BackButton label="Back" />
+        <Text className="text-xl font-bold text-ink px-1">Membership Plans</Text>
         <Text className="text-sm text-ink-soft mt-1">
           Choose a plan to get started.
         </Text>
@@ -116,5 +127,6 @@ export default function JoinGymScreen() {
         />
       )}
     </SafeAreaView>
+    </>
   );
 }

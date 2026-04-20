@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { apiFetch } from '../../../lib/api';
 import { useGym } from '../../../lib/gym-context';
@@ -48,7 +49,10 @@ const DAY_HEADERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 function toIso(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 function todayIso(): string {
@@ -105,21 +109,28 @@ function buildMonthGrid(year: number, month: number) {
   return cells;
 }
 
-function formatLocalTime(utcTimeStr: string, dateStr: string): string {
+function formatLocalTime(timeStr: string): string {
   try {
-    const dt = new Date(`${dateStr}T${utcTimeStr}Z`);
-    return dt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    // timeStr is "HH:MM:SS" stored as local gym time (no timezone)
+    const [h, m] = timeStr.split(':').map(Number);
+    const period = h >= 12 ? 'PM' : 'AM';
+    const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    return `${hour12}:${String(m).padStart(2, '0')} ${period}`;
   } catch {
-    return utcTimeStr;
+    return timeStr;
   }
 }
 
-function getEndTime(startTime: string, dateStr: string, durationMin: number | null): string | null {
+function getEndTime(startTime: string, durationMin: number | null): string | null {
   if (!durationMin) return null;
   try {
-    const dt = new Date(`${dateStr}T${startTime}Z`);
-    dt.setMinutes(dt.getMinutes() + durationMin);
-    return dt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    const [h, m] = startTime.split(':').map(Number);
+    const totalMin = h * 60 + m + durationMin;
+    const endH = Math.floor(totalMin / 60) % 24;
+    const endM = totalMin % 60;
+    const period = endH >= 12 ? 'PM' : 'AM';
+    const hour12 = endH === 0 ? 12 : endH > 12 ? endH - 12 : endH;
+    return `${hour12}:${String(endM).padStart(2, '0')} ${period}`;
   } catch {
     return null;
   }
@@ -128,6 +139,8 @@ function getEndTime(startTime: string, dateStr: string, durationMin: number | nu
 export default function ScheduleScreen() {
   const { activeGym } = useGym();
   const gymId = activeGym?.gym_id;
+  const router = useRouter();
+  const isMember = (activeGym?.roles || []).includes('member');
   const { width: screenWidth } = useWindowDimensions();
 
   const [viewMode, setViewMode] = useState<ViewMode>('week');
@@ -520,8 +533,8 @@ export default function ScheduleScreen() {
               const atCapacity = capacity != null && signups.length >= capacity;
               const isActionLoading = actionLoading === occ.id;
 
-              const timeStr = formatLocalTime(occ.start_time, selectedDate);
-              const endTimeStr = getEndTime(occ.start_time, selectedDate, occ.class?.duration_minutes ?? null);
+              const timeStr = formatLocalTime(occ.start_time);
+              const endTimeStr = getEndTime(occ.start_time, occ.class?.duration_minutes ?? null);
               const coachName = occ.coach
                 ? `${occ.coach.first_name || ''} ${occ.coach.last_name || ''}`.trim()
                 : null;
@@ -552,7 +565,13 @@ export default function ScheduleScreen() {
                   </View>
 
                   {/* Class card */}
-                  <View
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={() =>
+                      router.push(
+                        `/(app)/occurrence/${occ.id}?gymId=${gymId}` as any
+                      )
+                    }
                     className={`flex-1 ml-3 bg-card border rounded-xl overflow-hidden ${
                       isCancelled ? 'border-rule opacity-50' : signedUp ? 'border-accent' : 'border-rule'
                     }`}
@@ -624,7 +643,7 @@ export default function ScheduleScreen() {
                         </View>
                       )}
 
-                      {!isCancelled && (
+                      {!isCancelled && isMember && (
                         <View className="mt-3">
                           {signedUp ? (
                             <TouchableOpacity
@@ -657,8 +676,14 @@ export default function ScheduleScreen() {
                           )}
                         </View>
                       )}
+
+                      {/* View details hint */}
+                      <View className="flex-row items-center justify-end mt-2">
+                        <Text className="text-[11px] text-ink-muted mr-0.5">Details</Text>
+                        <Ionicons name="chevron-forward" size={12} color={colors.inkMuted} />
+                      </View>
                     </View>
-                  </View>
+                  </TouchableOpacity>
                 </View>
               );
             })}

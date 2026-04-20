@@ -24,10 +24,12 @@ type Program = {
   end_date: string | null;
   enrollment_count: number;
   user_enrolled: boolean;
+  user_eligible: boolean;
 };
 
 export default function ProgramsScreen() {
   const { activeGym, loading: gymLoading } = useGym();
+  const isMember = (activeGym?.roles || []).includes('member');
   const router = useRouter();
 
   const [programs, setPrograms] = useState<Program[]>([]);
@@ -119,6 +121,7 @@ export default function ProgramsScreen() {
 
   function renderProgram({ item }: { item: Program }) {
     const isEnrolled = enrolledIds.has(item.id);
+    const isEligible = item.user_eligible !== false; // default true for backwards compat
     const isToggling = togglingId === item.id;
     const startLabel = formatDate(item.start_date);
     const endLabel = formatDate(item.end_date);
@@ -165,35 +168,46 @@ export default function ProgramsScreen() {
             <Text className="text-sm font-semibold text-ink">View Workouts</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            className={`flex-1 rounded-lg py-2.5 items-center flex-row justify-center ${
-              isEnrolled
-                ? 'bg-accent-soft border border-accent-rule'
-                : 'bg-accent'
-            }`}
-            onPress={() => toggleEnrollment(item.id)}
-            disabled={isToggling}
-          >
-            {isToggling ? (
-              <ActivityIndicator
-                size="small"
-                color={isEnrolled ? colors.accentInk : '#ffffff'}
-              />
-            ) : isEnrolled ? (
-              <>
-                <Ionicons
-                  name="checkmark-circle"
-                  size={16}
-                  color={colors.accentInk}
+          {isMember && isEligible && (
+            <TouchableOpacity
+              className={`flex-1 rounded-lg py-2.5 items-center flex-row justify-center ${
+                isEnrolled
+                  ? 'bg-accent-soft border border-accent-rule'
+                  : 'bg-accent'
+              }`}
+              onPress={() => toggleEnrollment(item.id)}
+              disabled={isToggling}
+            >
+              {isToggling ? (
+                <ActivityIndicator
+                  size="small"
+                  color={isEnrolled ? colors.accentInk : '#ffffff'}
                 />
-                <Text className="text-sm font-semibold text-accent-ink ml-1">
-                  Enrolled
-                </Text>
-              </>
-            ) : (
-              <Text className="text-sm font-semibold text-white">Enroll</Text>
-            )}
-          </TouchableOpacity>
+              ) : isEnrolled ? (
+                <>
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={16}
+                    color={colors.accentInk}
+                  />
+                  <Text className="text-sm font-semibold text-accent-ink ml-1">
+                    Enrolled
+                  </Text>
+                </>
+              ) : (
+                <Text className="text-sm font-semibold text-white">Enroll</Text>
+              )}
+            </TouchableOpacity>
+          )}
+
+          {isMember && !isEligible && !isEnrolled && (
+            <View className="flex-1 rounded-lg py-2.5 items-center flex-row justify-center bg-soft border border-rule">
+              <Ionicons name="lock-closed-outline" size={14} color={colors.inkMuted} />
+              <Text className="text-xs font-medium text-ink-muted ml-1">
+                Membership required
+              </Text>
+            </View>
+          )}
         </View>
       </View>
     );

@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { apiFetch } from '../../../../lib/api';
+import BackButton from '../../../../components/BackButton';
 
 export default function GymDetailScreen() {
   const { gymId } = useLocalSearchParams();
@@ -18,15 +20,31 @@ export default function GymDetailScreen() {
 
   if (loading)
     return (
-      <View className="flex-1 p-4 bg-white">
-        <Text>Loading...</Text>
-      </View>
+      <>
+        <Stack.Screen options={{ headerShown: false }} />
+        <SafeAreaView className="flex-1 bg-base" edges={['top']}>
+          <View className="px-4 pt-1 pb-2 border-b border-rule bg-base">
+            <BackButton label="Back" />
+          </View>
+          <View className="flex-1 justify-center items-center">
+            <Text className="text-ink-muted">Loading...</Text>
+          </View>
+        </SafeAreaView>
+      </>
     );
   if (!gym)
     return (
-      <View className="flex-1 p-4 bg-white">
-        <Text>Gym not found.</Text>
-      </View>
+      <>
+        <Stack.Screen options={{ headerShown: false }} />
+        <SafeAreaView className="flex-1 bg-base" edges={['top']}>
+          <View className="px-4 pt-1 pb-2 border-b border-rule bg-base">
+            <BackButton label="Back" />
+          </View>
+          <View className="flex-1 justify-center items-center">
+            <Text className="text-ink-muted">Gym not found.</Text>
+          </View>
+        </SafeAreaView>
+      </>
     );
 
   const cards = [
@@ -37,21 +55,29 @@ export default function GymDetailScreen() {
   ];
 
   return (
-    <ScrollView className="flex-1 bg-white">
-      <View className="p-4">
-        <Text className="text-2xl font-bold mb-6">{gym.name}</Text>
+    <>
+      <Stack.Screen options={{ headerShown: false }} />
+      <SafeAreaView className="flex-1 bg-base" edges={['top']}>
+        <View className="px-4 pt-1 pb-2 border-b border-rule bg-base">
+          <BackButton label="Back" />
+          <Text className="text-xl font-bold text-ink px-1">{gym.name}</Text>
+        </View>
 
-        {cards.map((card) => (
-          <TouchableOpacity
-            key={card.title}
-            className="p-4 bg-gray-100 rounded-lg mb-3"
-            onPress={() => router.push(card.route as any)}
-          >
-            <Text className="text-base font-semibold">{card.title}</Text>
-            <Text className="text-sm text-gray-500 mt-1">{card.desc}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-    </ScrollView>
+        <ScrollView className="flex-1">
+          <View className="p-4">
+            {cards.map((card) => (
+              <TouchableOpacity
+                key={card.title}
+                className="p-4 bg-card border border-rule rounded-xl mb-3"
+                onPress={() => router.push(card.route as any)}
+              >
+                <Text className="text-base font-semibold text-ink">{card.title}</Text>
+                <Text className="text-sm text-ink-soft mt-1">{card.desc}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </>
   );
 }

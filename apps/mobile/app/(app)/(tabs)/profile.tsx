@@ -35,7 +35,7 @@ export default function ProfileScreen() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
-  const [plans, setPlans] = useState<any[]>([]);
+  const [subscriptions, setSubscriptions] = useState<any[]>([]);
 
   const gymId = activeGym?.gym_id;
 
@@ -45,9 +45,9 @@ export default function ProfileScreen() {
 
   useEffect(() => {
     if (gymId) {
-      apiFetch(`/gyms/${gymId}/plans`)
-        .then((data) => setPlans(data || []))
-        .catch(() => setPlans([]));
+      apiFetch(`/gyms/${gymId}/my-subscriptions`)
+        .then((data) => setSubscriptions(data || []))
+        .catch(() => setSubscriptions([]));
     }
   }, [gymId]);
 
@@ -289,24 +289,28 @@ export default function ProfileScreen() {
                   </View>
                 ))}
               </View>
-              {plans.length > 0 ? (
+              {subscriptions.length > 0 ? (
                 <View className="border-t border-rule pt-3 mt-1">
                   <Text className="text-xs text-ink-muted mb-1">
-                    Available Plans
+                    Your Memberships
                   </Text>
-                  {plans.map((plan: any) => (
-                    <View key={plan.id} className="flex-row items-center mt-1.5">
+                  {subscriptions.map((sub: any) => (
+                    <View key={sub.id} className="flex-row items-center mt-1.5">
                       <View className="w-1.5 h-1.5 rounded-full bg-accent mr-2" />
-                      <Text className="text-sm text-ink">{plan.name}</Text>
-                      {plan.price_cents != null && (
+                      <Text className="text-sm text-ink">{sub.plan?.name || 'Plan'}</Text>
+                      {sub.plan?.price_cents != null && (
                         <Text className="text-sm text-ink-muted ml-1">
-                          ${(plan.price_cents / 100).toFixed(2)}/{plan.type === 'monthly' ? 'mo' : plan.type === 'annual' ? 'yr' : plan.type}
+                          ${(sub.plan.price_cents / 100).toFixed(2)}/{sub.plan.type === 'monthly' ? 'mo' : sub.plan.type === 'annual' ? 'yr' : sub.plan.type}
                         </Text>
                       )}
                     </View>
                   ))}
                 </View>
-              ) : null}
+              ) : (
+                <View className="border-t border-rule pt-3 mt-1">
+                  <Text className="text-xs text-ink-muted">No active memberships</Text>
+                </View>
+              )}
             </>
           ) : (
             <View className="items-center py-4">
