@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
   RefreshControl,
   Modal,
   Pressable,
+  FlatList,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,6 +28,25 @@ type Announcement = {
   pinned: boolean;
   created_at: string;
 };
+
+type ProgramWithWorkout = {
+  id: string;
+  name: string;
+  description: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  nextWorkout: { id: string; title: string; format: string; date: string; description: string | null } | null;
+};
+
+function todayIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function formatDateShort(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
 
 function relativeTime(dateStr: string): string {
   const now = Date.now();
@@ -44,12 +65,18 @@ function relativeTime(dateStr: string): string {
 export default function HomeScreen() {
   const { gyms, activeGym, setActiveGymId, loading: gymLoading, refresh, isAdmin } = useGym();
   const router = useRouter();
+  const { width: screenWidth } = useWindowDimensions();
 
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loadingAnn, setLoadingAnn] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [showSwitcher, setShowSwitcher] = useState(false);
+
+  // Programs state
+  const [enrolledPrograms, setEnrolledPrograms] = useState<ProgramWithWorkout[]>([]);
+  const [loadingPrograms, setLoadingPrograms] = useState(false);
+  const [carouselIndex, setCarouselIndex] = useState(0);
 
   // Join gym state
   const [showJoin, setShowJoin] = useState(false);
@@ -59,10 +86,12 @@ export default function HomeScreen() {
   const [searchError, setSearchError] = useState<string | null>(null);
 
   const gymId = activeGym?.gym_id;
+  const programCardWidth = screenWidth - 40;
 
   const loadData = useCallback(async () => {
     if (!gymId) return;
     setLoadingAnn(true);
+    setLoadingPrograms(true);
     try {
       const data = await apiFetch(`/gyms/${gymId}/announcements`);
       const sorted = (data || [])
@@ -77,6 +106,49 @@ export default function HomeScreen() {
       setAnnouncements([]);
     } finally {
       setLoadingAnn(false);
+    }
+
+    // Fetch enrolled programs + next upcoming workout for each
+    try {
+      const programs = await apiFetch(`/gyms/${gymId}/programs`);
+      const enrolled = (programs || []).filter((p: any) => p.user_enrolled);
+      const today = todayIso();
+
+      const withWorkouts: ProgramWithWorkout[] = await Promise.all(
+        enrolled.map(async (p: any) => {
+          try {
+            const workouts = await apiFetch(
+              `/programs/${p.id}/workouts?start=${today}`,
+            );
+            const next = workouts && workouts.length > 0 ? workouts[0] : null;
+            return {
+              id: p.id,
+              name: p.name,
+              description: p.description,
+              start_date: p.start_date,
+              end_date: p.end_date,
+              nextWorkout: next
+                ? { id: next.id, title: next.title, format: next.format, date: next.date, description: next.description }
+                : null,
+            };
+          } catch {
+            return {
+              id: p.id,
+              name: p.name,
+              description: p.description,
+              start_date: p.start_date,
+              end_date: p.end_date,
+              nextWorkout: null,
+            };
+          }
+        }),
+      );
+      setEnrolledPrograms(withWorkouts);
+      setCarouselIndex(0);
+    } catch {
+      setEnrolledPrograms([]);
+    } finally {
+      setLoadingPrograms(false);
     }
   }, [gymId]);
 
@@ -439,6 +511,71 @@ export default function HomeScreen() {
           )}
         </View>
 
+        {/* My Programs */}
+        {!loadingPrograms && enrolledPrograms.length > 0 && (
+          <>
+            <View className="flex-row items-center justify-between mb-2 ml-1">
+              <Text className="text-xs font-semibold text-ink-muted uppercase tracking-wider">
+                My Programs
+              </Text>
+              <TouchableOpacity
+                className="flex-row items-center"
+                onPress={() => router.push('/(app)/(tabs)/programs' as any)}
+              >
+                <Text className="text-xs font-semibold text-accent mr-0.5">View All</Text>
+                <Ionicons name="chevron-forward" size={14} color={colors.accent} />
+              </TouchableOpacity>
+            </View>
+            {enrolledPrograms.length === 1 ? (
+              // Single program — full-width card
+              <ProgramCard
+                program={enrolledPrograms[0]}
+                gymId={gymId!}
+                router={router}
+                width={programCardWidth}
+              />
+            ) : (
+              // Multiple programs — horizontal carousel
+              <View className="mb-5">
+                <FlatList
+                  data={enrolledPrograms}
+                  keyExtractor={(item) => item.id}
+                  horizontal
+                  pagingEnabled
+                  showsHorizontalScrollIndicator={false}
+                  snapToInterval={programCardWidth + 12}
+                  decelerationRate="fast"
+                  contentContainerStyle={{ gap: 12 }}
+                  onMomentumScrollEnd={(e) => {
+                    const idx = Math.round(e.nativeEvent.contentOffset.x / (programCardWidth + 12));
+                    setCarouselIndex(idx);
+                  }}
+                  renderItem={({ item }) => (
+                    <ProgramCard
+                      program={item}
+                      gymId={gymId!}
+                      router={router}
+                      width={programCardWidth}
+                    />
+                  )}
+                />
+                {/* Dots */}
+                {enrolledPrograms.length > 1 && (
+                  <View className="flex-row justify-center mt-3 gap-1.5">
+                    {enrolledPrograms.map((p, i) => (
+                      <View
+                        key={p.id}
+                        className={`rounded-full ${i === carouselIndex ? 'bg-accent' : 'bg-rule'}`}
+                        style={{ width: i === carouselIndex ? 16 : 6, height: 6 }}
+                      />
+                    ))}
+                  </View>
+                )}
+              </View>
+            )}
+          </>
+        )}
+
         {/* Quick Actions */}
         <Text className="text-xs font-semibold text-ink-muted uppercase tracking-wider mb-2 ml-1">
           Quick Actions
@@ -495,5 +632,73 @@ export default function HomeScreen() {
         </ScrollView>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function ProgramCard({
+  program,
+  gymId,
+  router,
+  width,
+}: {
+  program: ProgramWithWorkout;
+  gymId: string;
+  router: any;
+  width: number;
+}) {
+  const w = program.nextWorkout;
+  const isTime = w?.format === 'time';
+  return (
+    <TouchableOpacity
+      activeOpacity={0.7}
+      onPress={() =>
+        router.push(`/(app)/gym/${gymId}/programs/${program.id}` as any)
+      }
+      className="bg-card border border-rule rounded-xl p-4 mb-5"
+      style={{ width }}
+    >
+      <View className="flex-row items-center justify-between mb-2">
+        <Text className="text-base font-bold text-ink flex-1 mr-2" numberOfLines={1}>
+          {program.name}
+        </Text>
+        <Ionicons name="chevron-forward" size={16} color={colors.inkMuted} />
+      </View>
+
+      {w ? (
+        <View className="bg-base border border-rule rounded-lg p-3">
+          <Text className="text-[10px] font-semibold text-ink-muted uppercase tracking-wider mb-1">
+            Next Workout
+          </Text>
+          <View className="flex-row items-center mb-1">
+            <View
+              className={`px-2 py-0.5 rounded mr-2 ${
+                isTime ? 'bg-soft' : 'bg-accent-soft'
+              }`}
+            >
+              <Text
+                className={`text-[10px] font-bold tracking-wide ${
+                  isTime ? 'text-ink-soft' : 'text-accent-ink'
+                }`}
+              >
+                {isTime ? 'TIME' : 'AMRAP'}
+              </Text>
+            </View>
+            <Text className="text-xs text-ink-muted">{formatDateShort(w.date)}</Text>
+          </View>
+          <Text className="text-sm font-semibold text-ink" numberOfLines={1}>
+            {w.title}
+          </Text>
+          {w.description ? (
+            <Text className="text-xs text-ink-soft mt-1 leading-4" numberOfLines={2}>
+              {w.description}
+            </Text>
+          ) : null}
+        </View>
+      ) : (
+        <View className="bg-base border border-rule rounded-lg p-3 items-center">
+          <Text className="text-xs text-ink-muted">No upcoming workouts</Text>
+        </View>
+      )}
+    </TouchableOpacity>
   );
 }
