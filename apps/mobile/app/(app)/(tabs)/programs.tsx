@@ -50,10 +50,14 @@ export default function ProgramsScreen() {
 
     try {
       const programsData = await apiFetch(`/gyms/${gymId}/programs`);
-      setPrograms(programsData || []);
+      // Only show programs the user is eligible for
+      const eligible = (programsData || []).filter(
+        (p: Program) => p.user_eligible !== false
+      );
+      setPrograms(eligible);
       // Populate enrolledIds from server-provided user_enrolled field
       const enrolled = new Set<string>(
-        (programsData || [])
+        eligible
           .filter((p: Program) => p.user_enrolled)
           .map((p: Program) => p.id)
       );
@@ -135,8 +139,15 @@ export default function ProgramsScreen() {
             : null;
 
     return (
-      <View className="bg-card border border-rule rounded-xl p-4 mb-3">
-        <Text className="text-base font-bold text-ink">{item.name}</Text>
+      <TouchableOpacity
+        className="bg-card border border-rule rounded-xl p-4 mb-3"
+        activeOpacity={0.7}
+        onPress={() => router.push(`/(app)/gym/${gymId}/programs/${item.id}` as any)}
+      >
+        <View className="flex-row items-start justify-between">
+          <Text className="text-base font-bold text-ink flex-1 mr-2">{item.name}</Text>
+          <Ionicons name="chevron-forward" size={16} color={colors.inkMuted} style={{ marginTop: 2 }} />
+        </View>
 
         {item.description ? (
           <Text className="text-[13px] text-ink-soft mt-1" numberOfLines={2}>
@@ -159,14 +170,6 @@ export default function ProgramsScreen() {
         </View>
 
         <View className="flex-row mt-3 gap-2">
-          <TouchableOpacity
-            className="flex-1 bg-soft border border-rule rounded-lg py-2.5 items-center"
-            onPress={() =>
-              router.push(`/(app)/gym/${gymId}/programs/${item.id}` as any)
-            }
-          >
-            <Text className="text-sm font-semibold text-ink">View Workouts</Text>
-          </TouchableOpacity>
 
           {isMember && isEligible && (
             <TouchableOpacity
@@ -209,7 +212,7 @@ export default function ProgramsScreen() {
             </View>
           )}
         </View>
-      </View>
+      </TouchableOpacity>
     );
   }
 

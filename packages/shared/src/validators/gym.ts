@@ -3,11 +3,13 @@ import { ROLES, MEMBER_STATUSES, GENDERS } from '../constants';
 
 export const createGymSchema = z.object({
   name: z.string().min(1, 'Gym name is required'),
+  contact_email: z.string().email('Valid email required').nullable().optional(),
 });
 
 export const updateGymSchema = z.object({
   name: z.string().min(1).optional(),
   logo_url: z.string().url().nullable().optional(),
+  contact_email: z.string().email('Valid email required').nullable().optional(),
 });
 
 export const addMemberRoleSchema = z.object({

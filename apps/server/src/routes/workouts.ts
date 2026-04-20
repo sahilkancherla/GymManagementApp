@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import { createWorkoutSchema, updateWorkoutSchema } from '@acuo/shared';
 import { supabase } from '../supabase';
@@ -48,6 +48,103 @@ workoutRoutes.get('/programs/:programId/workouts', requireAuth, async (req, res,
     if (linksError) throw linksError;
 
     res.json(attachClassIds(workouts, links || []));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Get all workouts in a program with the current user's stats pre-joined
+workoutRoutes.get('/programs/:programId/my-history', requireAuth, async (req, res, next) => {
+  try {
+    const { user } = req as AuthenticatedRequest;
+
+    // Fetch all workouts for this program, ordered by date descending
+    const { data: workouts, error } = await supabase
+      .from('workouts')
+      .select('id, title, description, format, date, sort_order')
+      .eq('program_id', req.params.programId)
+      .order('date', { ascending: false })
+      .order('sort_order', { ascending: true });
+
+    if (error) throw error;
+    if (!workouts || workouts.length === 0) {
+      res.json([]);
+      return;
+    }
+
+    // Batch-fetch user's stats for all these workouts
+    const workoutIds = workouts.map((w) => w.id);
+    const { data: stats, error: statsError } = await supabase
+      .from('workout_stats')
+      .select('workout_id, time_seconds, amrap_rounds, amrap_reps, notes, rx_scaled')
+      .eq('user_id', user.id)
+      .in('workout_id', workoutIds);
+
+    if (statsError) throw statsError;
+
+    const statsByWorkout = new Map<string, any>();
+    for (const stat of stats || []) {
+      statsByWorkout.set(stat.workout_id, stat);
+    }
+
+    // Only return workouts where the user has logged a result
+    const history = workouts
+      .filter((w) => statsByWorkout.has(w.id))
+      .map((w) => ({
+        ...w,
+        my_stat: statsByWorkout.get(w.id),
+      }));
+
+    res.json(history);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Get the current user's class signups for classes in a program
+workoutRoutes.get('/programs/:programId/my-signups', requireAuth, async (req, res, next) => {
+  try {
+    const { user } = req as AuthenticatedRequest;
+    const programId = req.params.programId;
+
+    // Get classes belonging to this program
+    const { data: classes, error: classError } = await supabase
+      .from('classes')
+      .select('id, name')
+      .eq('program_id', programId);
+
+    if (classError) throw classError;
+    if (!classes || classes.length === 0) {
+      res.json([]);
+      return;
+    }
+
+    const classIds = classes.map((c) => c.id);
+    const classMap = new Map(classes.map((c) => [c.id, c]));
+
+    // Get occurrences for those classes where user has a signup
+    const { data: signups, error: signupError } = await supabase
+      .from('class_signups')
+      .select(`
+        id, checked_in, checked_in_at,
+        occurrence:class_occurrences(
+          id, date, start_time, is_cancelled, class_id
+        )
+      `)
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (signupError) throw signupError;
+
+    // Filter to only signups for classes in this program and enrich with class name
+    const result = (signups || [])
+      .filter((s: any) => s.occurrence && classIds.includes(s.occurrence.class_id))
+      .map((s: any) => ({
+        ...s,
+        class_name: classMap.get(s.occurrence.class_id)?.name || 'Class',
+      }));
+
+    res.json(result);
   } catch (err) {
     next(err);
   }

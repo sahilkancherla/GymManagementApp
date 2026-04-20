@@ -38,6 +38,26 @@ type Occurrence = {
   signups: Signup[];
 };
 
+type GymClass = {
+  id: string;
+  name: string;
+  start_time: string | null;
+  days_of_week: number[] | null;
+  one_off_date: string | null;
+  capacity: number | null;
+  duration_minutes: number | null;
+  coach?: {
+    id: string;
+    first_name: string | null;
+    last_name: string | null;
+  } | null;
+};
+
+// Unified item for the schedule list
+type ScheduleItem =
+  | { type: 'occurrence'; data: Occurrence }
+  | { type: 'scheduled'; data: GymClass };
+
 type ViewMode = 'day' | 'week' | 'month';
 
 const MONTH_NAMES = [
@@ -152,6 +172,7 @@ export default function ScheduleScreen() {
   });
 
   const [occurrences, setOccurrences] = useState<Occurrence[]>([]);
+  const [gymClasses, setGymClasses] = useState<GymClass[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -168,18 +189,57 @@ export default function ScheduleScreen() {
   const headerMonth = MONTH_NAMES[selDate.getMonth()];
   const headerYear = selDate.getFullYear();
 
+  // Merge occurrences with recurring classes that don't have an occurrence yet
+  const scheduleItems: ScheduleItem[] = useMemo(() => {
+    const items: ScheduleItem[] = occurrences.map((o) => ({ type: 'occurrence' as const, data: o }));
+
+    // IDs of classes that already have an occurrence on this date
+    const classIdsWithOccurrence = new Set(
+      occurrences.map((o) => o.class?.id).filter(Boolean)
+    );
+
+    const selectedDow = new Date(selectedDate + 'T00:00:00').getDay(); // 0=Sun
+
+    for (const cls of gymClasses) {
+      if (classIdsWithOccurrence.has(cls.id)) continue;
+
+      // Check if this class runs on the selected day
+      const isOneOff = cls.one_off_date === selectedDate;
+      const isRecurring =
+        Array.isArray(cls.days_of_week) && cls.days_of_week.includes(selectedDow);
+
+      if (isOneOff || isRecurring) {
+        items.push({ type: 'scheduled', data: cls });
+      }
+    }
+
+    // Sort by start_time
+    items.sort((a, b) => {
+      const timeA =
+        a.type === 'occurrence' ? a.data.start_time : a.data.start_time || '';
+      const timeB =
+        b.type === 'occurrence' ? b.data.start_time : b.data.start_time || '';
+      return timeA.localeCompare(timeB);
+    });
+
+    return items;
+  }, [occurrences, gymClasses, selectedDate]);
+
   const loadOccurrences = useCallback(async () => {
     if (!gymId) return;
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const [{ data: { user } }, occData, classData] = await Promise.all([
+        supabase.auth.getUser(),
+        apiFetch(`/gyms/${gymId}/occurrences?start=${selectedDate}&end=${selectedDate}`),
+        apiFetch(`/gyms/${gymId}/classes`),
+      ]);
       setCurrentUserId(user?.id || null);
-      const data = await apiFetch(
-        `/gyms/${gymId}/occurrences?start=${selectedDate}&end=${selectedDate}`
-      );
-      setOccurrences((data || []).filter((o: any) => o.class));
+      setOccurrences((occData || []).filter((o: any) => o.class));
+      setGymClasses(classData || []);
     } catch {
       setOccurrences([]);
+      setGymClasses([]);
     } finally {
       setLoading(false);
     }
@@ -393,7 +453,7 @@ export default function ScheduleScreen() {
                 >
                   <Text
                     className={`text-[11px] font-semibold uppercase ${
-                      isSelected ? 'text-accent' : day.isToday ? 'text-accent' : 'text-ink-muted'
+                      isSelected ? 'text-accent' : 'text-ink-muted'
                     }`}
                   >
                     {day.dayLabel}
@@ -406,17 +466,14 @@ export default function ScheduleScreen() {
                   >
                     <Text
                       className={`text-base font-bold ${
-                        isSelected ? 'text-white' : day.isToday ? 'text-accent' : 'text-ink'
+                        isSelected ? 'text-white' : 'text-ink'
                       }`}
                     >
                       {day.dayNum}
                     </Text>
                   </View>
                   {day.isToday && (
-                    <View
-                      className={`rounded-full mt-1 ${isSelected ? 'bg-white' : 'bg-accent'}`}
-                      style={{ width: 4, height: 4 }}
-                    />
+                    <View className="bg-accent rounded-full mt-1" style={{ width: 5, height: 5 }} />
                   )}
                 </TouchableOpacity>
               );
@@ -478,17 +535,14 @@ export default function ScheduleScreen() {
                   >
                     <Text
                       className={`text-sm font-semibold ${
-                        isSelected ? 'text-white' : cell.isToday ? 'text-accent' : 'text-ink'
+                        isSelected ? 'text-white' : 'text-ink'
                       }`}
                     >
                       {cell.dayNum}
                     </Text>
                   </View>
-                  {cell.isToday && !isSelected && (
-                    <View
-                      className="bg-accent rounded-full absolute bottom-0.5"
-                      style={{ width: 4, height: 4 }}
-                    />
+                  {cell.isToday && (
+                    <View className="bg-accent rounded-full absolute bottom-0.5" style={{ width: 5, height: 5 }} />
                   )}
                 </TouchableOpacity>
               );
@@ -511,7 +565,7 @@ export default function ScheduleScreen() {
             <ActivityIndicator size="large" color={colors.accent} />
             <Text className="text-sm text-ink-muted mt-3">Loading classes...</Text>
           </View>
-        ) : occurrences.length === 0 ? (
+        ) : scheduleItems.length === 0 ? (
           <View className="items-center py-16 px-8">
             <View className="w-16 h-16 rounded-full bg-soft items-center justify-center mb-4">
               <Ionicons name="calendar-outline" size={28} color={colors.inkMuted} />
@@ -523,28 +577,185 @@ export default function ScheduleScreen() {
           </View>
         ) : (
           <View className="px-5 pt-4">
-            {occurrences.map((occ, index) => {
-              const signups = occ.signups || [];
-              const signedUp = currentUserId
-                ? signups.some((s) => s.user_id === currentUserId)
-                : false;
-              const isCancelled = !!occ.is_cancelled;
-              const capacity = occ.class?.capacity ?? null;
-              const atCapacity = capacity != null && signups.length >= capacity;
-              const isActionLoading = actionLoading === occ.id;
+            {scheduleItems.map((item, index) => {
+              if (item.type === 'occurrence') {
+                const occ = item.data;
+                const signups = occ.signups || [];
+                const signedUp = currentUserId
+                  ? signups.some((s) => s.user_id === currentUserId)
+                  : false;
+                const isCancelled = !!occ.is_cancelled;
+                const capacity = occ.class?.capacity ?? null;
+                const atCapacity = capacity != null && signups.length >= capacity;
+                const isActionLoading = actionLoading === occ.id;
 
-              const timeStr = formatLocalTime(occ.start_time);
-              const endTimeStr = getEndTime(occ.start_time, occ.class?.duration_minutes ?? null);
-              const coachName = occ.coach
-                ? `${occ.coach.first_name || ''} ${occ.coach.last_name || ''}`.trim()
+                const timeStr = formatLocalTime(occ.start_time);
+                const endTimeStr = getEndTime(occ.start_time, occ.class?.duration_minutes ?? null);
+                const coachName = occ.coach
+                  ? `${occ.coach.first_name || ''} ${occ.coach.last_name || ''}`.trim()
+                  : null;
+                const spotsText = capacity != null
+                  ? `${signups.length}/${capacity} spots`
+                  : `${signups.length} signed up`;
+                const spotsLeft = capacity != null ? capacity - signups.length : null;
+
+                return (
+                  <View key={occ.id} className="flex-row mb-4">
+                    {/* Time column */}
+                    <View className="items-end pr-3 pt-1" style={{ width: 68 }}>
+                      <Text className="text-sm font-semibold text-ink">{timeStr}</Text>
+                      {endTimeStr && (
+                        <Text className="text-xs text-ink-muted mt-0.5">{endTimeStr}</Text>
+                      )}
+                    </View>
+
+                    {/* Timeline dot + line */}
+                    <View className="items-center" style={{ width: 16 }}>
+                      <View
+                        className={`rounded-full ${isCancelled ? 'bg-ink-faint' : 'bg-accent'}`}
+                        style={{ width: 8, height: 8, marginTop: 7 }}
+                      />
+                      {index < scheduleItems.length - 1 && (
+                        <View className="bg-rule flex-1" style={{ width: 1.5, marginTop: 4 }} />
+                      )}
+                    </View>
+
+                    {/* Class card */}
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      onPress={() =>
+                        router.push(
+                          `/(app)/occurrence/${occ.id}?gymId=${gymId}` as any
+                        )
+                      }
+                      className={`flex-1 ml-3 bg-card border rounded-xl overflow-hidden ${
+                        isCancelled ? 'border-rule opacity-50' : signedUp ? 'border-accent' : 'border-rule'
+                      }`}
+                    >
+                      {signedUp && !isCancelled && (
+                        <View className="bg-accent" style={{ height: 3 }} />
+                      )}
+
+                      <View className="p-3.5">
+                        <View className="flex-row items-start justify-between">
+                          <Text
+                            className={`text-[15px] font-bold flex-shrink ${
+                              isCancelled ? 'text-ink-muted line-through' : 'text-ink'
+                            }`}
+                            numberOfLines={1}
+                          >
+                            {occ.class?.name}
+                          </Text>
+                          {isCancelled && (
+                            <View className="bg-danger-soft px-2 py-0.5 rounded ml-2">
+                              <Text className="text-[10px] font-bold text-danger uppercase">Cancelled</Text>
+                            </View>
+                          )}
+                          {signedUp && !isCancelled && (
+                            <View className="bg-accent-soft px-2 py-0.5 rounded ml-2 flex-row items-center">
+                              <Ionicons name="checkmark-circle" size={11} color={colors.accent} />
+                              <Text className="text-[10px] font-bold text-accent-ink ml-0.5 uppercase">Going</Text>
+                            </View>
+                          )}
+                        </View>
+
+                        <View className="flex-row items-center mt-1.5 flex-wrap">
+                          {occ.class?.duration_minutes ? (
+                            <View className="flex-row items-center mr-3">
+                              <Ionicons name="time-outline" size={12} color={colors.inkMuted} />
+                              <Text className="text-xs text-ink-muted ml-1">
+                                {occ.class.duration_minutes} min
+                              </Text>
+                            </View>
+                          ) : null}
+                          {coachName ? (
+                            <View className="flex-row items-center mr-3">
+                              <Ionicons name="person-outline" size={12} color={colors.inkMuted} />
+                              <Text className="text-xs text-ink-muted ml-1">{coachName}</Text>
+                            </View>
+                          ) : null}
+                          <View className="flex-row items-center">
+                            <Ionicons name="people-outline" size={12} color={colors.inkMuted} />
+                            <Text className="text-xs text-ink-muted ml-1">{spotsText}</Text>
+                          </View>
+                        </View>
+
+                        {capacity != null && !isCancelled && (
+                          <View className="mt-2.5">
+                            <View className="bg-soft rounded-full overflow-hidden" style={{ height: 4 }}>
+                              <View
+                                className={`rounded-full ${atCapacity ? 'bg-ink-muted' : 'bg-accent'}`}
+                                style={{
+                                  height: 4,
+                                  width: `${Math.min((signups.length / capacity) * 100, 100)}%`,
+                                }}
+                              />
+                            </View>
+                            {spotsLeft != null && spotsLeft > 0 && spotsLeft <= 3 && (
+                              <Text className="text-[10px] text-accent font-semibold mt-1">
+                                {spotsLeft} spot{spotsLeft !== 1 ? 's' : ''} left
+                              </Text>
+                            )}
+                          </View>
+                        )}
+
+                        {!isCancelled && isMember && (
+                          <View className="mt-3">
+                            {signedUp ? (
+                              <TouchableOpacity
+                                className="border border-rule rounded-lg py-2 items-center"
+                                onPress={() => handleCancel(occ.id)}
+                                disabled={isActionLoading}
+                              >
+                                {isActionLoading ? (
+                                  <ActivityIndicator size="small" color={colors.inkMuted} />
+                                ) : (
+                                  <Text className="text-xs font-semibold text-ink-soft">Cancel Sign-up</Text>
+                                )}
+                              </TouchableOpacity>
+                            ) : !atCapacity ? (
+                              <TouchableOpacity
+                                className="bg-accent rounded-lg py-2 items-center"
+                                onPress={() => handleSignUp(occ.id)}
+                                disabled={isActionLoading}
+                              >
+                                {isActionLoading ? (
+                                  <ActivityIndicator size="small" color="#ffffff" />
+                                ) : (
+                                  <Text className="text-xs font-semibold text-white">Sign Up</Text>
+                                )}
+                              </TouchableOpacity>
+                            ) : (
+                              <View className="bg-sunken rounded-lg py-2 items-center">
+                                <Text className="text-xs font-semibold text-ink-muted">Class Full</Text>
+                              </View>
+                            )}
+                          </View>
+                        )}
+
+                        {/* View details hint */}
+                        <View className="flex-row items-center justify-end mt-2">
+                          <Text className="text-[11px] text-ink-muted mr-0.5">Details</Text>
+                          <Ionicons name="chevron-forward" size={12} color={colors.inkMuted} />
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  </View>
+                );
+              }
+
+              // Recurring/scheduled class (no occurrence generated yet)
+              const cls = item.data;
+              const timeStr = cls.start_time ? formatLocalTime(cls.start_time) : '';
+              const endTimeStr = cls.start_time
+                ? getEndTime(cls.start_time, cls.duration_minutes)
                 : null;
-              const spotsText = capacity != null
-                ? `${signups.length}/${capacity} spots`
-                : `${signups.length} signed up`;
-              const spotsLeft = capacity != null ? capacity - signups.length : null;
+              const coachName = cls.coach
+                ? `${cls.coach.first_name || ''} ${cls.coach.last_name || ''}`.trim()
+                : null;
 
               return (
-                <View key={occ.id} className="flex-row mb-4">
+                <View key={`scheduled-${cls.id}`} className="flex-row mb-4">
                   {/* Time column */}
                   <View className="items-end pr-3 pt-1" style={{ width: 68 }}>
                     <Text className="text-sm font-semibold text-ink">{timeStr}</Text>
@@ -556,59 +767,32 @@ export default function ScheduleScreen() {
                   {/* Timeline dot + line */}
                   <View className="items-center" style={{ width: 16 }}>
                     <View
-                      className={`rounded-full ${isCancelled ? 'bg-ink-faint' : 'bg-accent'}`}
+                      className="rounded-full bg-ink-faint"
                       style={{ width: 8, height: 8, marginTop: 7 }}
                     />
-                    {index < occurrences.length - 1 && (
+                    {index < scheduleItems.length - 1 && (
                       <View className="bg-rule flex-1" style={{ width: 1.5, marginTop: 4 }} />
                     )}
                   </View>
 
-                  {/* Class card */}
-                  <TouchableOpacity
-                    activeOpacity={0.7}
-                    onPress={() =>
-                      router.push(
-                        `/(app)/occurrence/${occ.id}?gymId=${gymId}` as any
-                      )
-                    }
-                    className={`flex-1 ml-3 bg-card border rounded-xl overflow-hidden ${
-                      isCancelled ? 'border-rule opacity-50' : signedUp ? 'border-accent' : 'border-rule'
-                    }`}
-                  >
-                    {signedUp && !isCancelled && (
-                      <View className="bg-accent" style={{ height: 3 }} />
-                    )}
-
+                  {/* Class card — scheduled but not yet created */}
+                  <View className="flex-1 ml-3 bg-card border border-dashed border-rule rounded-xl overflow-hidden">
                     <View className="p-3.5">
                       <View className="flex-row items-start justify-between">
-                        <Text
-                          className={`text-[15px] font-bold flex-shrink ${
-                            isCancelled ? 'text-ink-muted line-through' : 'text-ink'
-                          }`}
-                          numberOfLines={1}
-                        >
-                          {occ.class?.name}
+                        <Text className="text-[15px] font-bold text-ink flex-shrink" numberOfLines={1}>
+                          {cls.name}
                         </Text>
-                        {isCancelled && (
-                          <View className="bg-danger-soft px-2 py-0.5 rounded ml-2">
-                            <Text className="text-[10px] font-bold text-danger uppercase">Cancelled</Text>
-                          </View>
-                        )}
-                        {signedUp && !isCancelled && (
-                          <View className="bg-accent-soft px-2 py-0.5 rounded ml-2 flex-row items-center">
-                            <Ionicons name="checkmark-circle" size={11} color={colors.accent} />
-                            <Text className="text-[10px] font-bold text-accent-ink ml-0.5 uppercase">Going</Text>
-                          </View>
-                        )}
+                        <View className="bg-soft px-2 py-0.5 rounded ml-2">
+                          <Text className="text-[10px] font-bold text-ink-muted uppercase">Recurring</Text>
+                        </View>
                       </View>
 
                       <View className="flex-row items-center mt-1.5 flex-wrap">
-                        {occ.class?.duration_minutes ? (
+                        {cls.duration_minutes ? (
                           <View className="flex-row items-center mr-3">
                             <Ionicons name="time-outline" size={12} color={colors.inkMuted} />
                             <Text className="text-xs text-ink-muted ml-1">
-                              {occ.class.duration_minutes} min
+                              {cls.duration_minutes} min
                             </Text>
                           </View>
                         ) : null}
@@ -618,72 +802,24 @@ export default function ScheduleScreen() {
                             <Text className="text-xs text-ink-muted ml-1">{coachName}</Text>
                           </View>
                         ) : null}
-                        <View className="flex-row items-center">
-                          <Ionicons name="people-outline" size={12} color={colors.inkMuted} />
-                          <Text className="text-xs text-ink-muted ml-1">{spotsText}</Text>
-                        </View>
+                        {cls.capacity != null && (
+                          <View className="flex-row items-center">
+                            <Ionicons name="people-outline" size={12} color={colors.inkMuted} />
+                            <Text className="text-xs text-ink-muted ml-1">
+                              {cls.capacity} spots
+                            </Text>
+                          </View>
+                        )}
                       </View>
 
-                      {capacity != null && !isCancelled && (
-                        <View className="mt-2.5">
-                          <View className="bg-soft rounded-full overflow-hidden" style={{ height: 4 }}>
-                            <View
-                              className={`rounded-full ${atCapacity ? 'bg-ink-muted' : 'bg-accent'}`}
-                              style={{
-                                height: 4,
-                                width: `${Math.min((signups.length / capacity) * 100, 100)}%`,
-                              }}
-                            />
-                          </View>
-                          {spotsLeft != null && spotsLeft > 0 && spotsLeft <= 3 && (
-                            <Text className="text-[10px] text-accent font-semibold mt-1">
-                              {spotsLeft} spot{spotsLeft !== 1 ? 's' : ''} left
-                            </Text>
-                          )}
-                        </View>
-                      )}
-
-                      {!isCancelled && isMember && (
-                        <View className="mt-3">
-                          {signedUp ? (
-                            <TouchableOpacity
-                              className="border border-rule rounded-lg py-2 items-center"
-                              onPress={() => handleCancel(occ.id)}
-                              disabled={isActionLoading}
-                            >
-                              {isActionLoading ? (
-                                <ActivityIndicator size="small" color={colors.inkMuted} />
-                              ) : (
-                                <Text className="text-xs font-semibold text-ink-soft">Cancel Sign-up</Text>
-                              )}
-                            </TouchableOpacity>
-                          ) : !atCapacity ? (
-                            <TouchableOpacity
-                              className="bg-accent rounded-lg py-2 items-center"
-                              onPress={() => handleSignUp(occ.id)}
-                              disabled={isActionLoading}
-                            >
-                              {isActionLoading ? (
-                                <ActivityIndicator size="small" color="#ffffff" />
-                              ) : (
-                                <Text className="text-xs font-semibold text-white">Sign Up</Text>
-                              )}
-                            </TouchableOpacity>
-                          ) : (
-                            <View className="bg-sunken rounded-lg py-2 items-center">
-                              <Text className="text-xs font-semibold text-ink-muted">Class Full</Text>
-                            </View>
-                          )}
-                        </View>
-                      )}
-
-                      {/* View details hint */}
-                      <View className="flex-row items-center justify-end mt-2">
-                        <Text className="text-[11px] text-ink-muted mr-0.5">Details</Text>
-                        <Ionicons name="chevron-forward" size={12} color={colors.inkMuted} />
+                      <View className="flex-row items-center mt-2.5">
+                        <Ionicons name="repeat-outline" size={12} color={colors.inkMuted} />
+                        <Text className="text-[11px] text-ink-muted ml-1">
+                          Recurring class — sign-up available once session is created
+                        </Text>
                       </View>
                     </View>
-                  </TouchableOpacity>
+                  </View>
                 </View>
               );
             })}

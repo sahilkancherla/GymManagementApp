@@ -1861,15 +1861,19 @@ function SettingsPanel({
   onSaved: (updated: any) => void;
 }) {
   const [name, setName] = useState<string>(gym?.name || "");
+  const [contactEmail, setContactEmail] = useState<string>(gym?.contact_email || "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successAt, setSuccessAt] = useState<number | null>(null);
 
   useEffect(() => {
     setName(gym?.name || "");
-  }, [gym?.id, gym?.name]);
+    setContactEmail(gym?.contact_email || "");
+  }, [gym?.id, gym?.name, gym?.contact_email]);
 
-  const dirty = name.trim() !== (gym?.name || "").trim();
+  const dirty =
+    name.trim() !== (gym?.name || "").trim() ||
+    (contactEmail.trim() || "") !== (gym?.contact_email || "");
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -1883,7 +1887,10 @@ function SettingsPanel({
     try {
       const updated = await apiFetch(`/gyms/${gym.id}`, {
         method: "PUT",
-        body: JSON.stringify({ name: trimmed }),
+        body: JSON.stringify({
+          name: trimmed,
+          contact_email: contactEmail.trim() || null,
+        }),
       });
       onSaved(updated);
       setSuccessAt(Date.now());
@@ -1914,6 +1921,19 @@ function SettingsPanel({
             className="h-10 rounded-md border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
             value={name}
             onChange={(e) => setName(e.target.value)}
+          />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[11px] tracking-[0.12em] uppercase text-[var(--color-ink-muted)] font-medium">
+            Contact email <span className="normal-case tracking-normal text-[var(--color-ink-faint)]">(optional)</span>
+          </label>
+          <input
+            type="email"
+            className="h-10 rounded-md border border-[var(--color-rule-strong)] bg-[var(--color-bg-card)] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15 focus:border-[var(--color-ink)]"
+            value={contactEmail}
+            onChange={(e) => setContactEmail(e.target.value)}
+            placeholder="gym@example.com"
           />
         </div>
 

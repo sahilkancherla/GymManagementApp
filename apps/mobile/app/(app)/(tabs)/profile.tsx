@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase, API_URL } from '../../../lib/supabase';
 import { apiFetch } from '../../../lib/api';
@@ -26,6 +27,7 @@ const GENDER_OPTIONS = [
 
 export default function ProfileScreen() {
   const { activeGym } = useGym();
+  const router = useRouter();
 
   const [profile, setProfile] = useState<any>(null);
   const [firstName, setFirstName] = useState('');
@@ -311,6 +313,15 @@ export default function ProfileScreen() {
                   <Text className="text-xs text-ink-muted">No active memberships</Text>
                 </View>
               )}
+
+              <TouchableOpacity
+                className="bg-accent rounded-lg py-3 items-center mt-3"
+                onPress={() => router.push(`/(app)/gym/${gymId}/memberships` as any)}
+              >
+                <Text className="text-white text-sm font-semibold">
+                  {subscriptions.length > 0 ? 'Manage Membership' : 'Browse Plans'}
+                </Text>
+              </TouchableOpacity>
             </>
           ) : (
             <View className="items-center py-4">

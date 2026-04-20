@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
@@ -16,17 +17,140 @@ import { supabase } from '../../../../../lib/supabase';
 import { colors } from '../../../../../lib/theme';
 import BackButton from '../../../../../components/BackButton';
 
+type ViewMode = 'day' | 'week' | 'month';
+type PageTab = 'schedule' | 'history';
+
+const MONTH_NAMES = [
+  'January','February','March','April','May','June',
+  'July','August','September','October','November','December',
+];
+const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const DAY_HEADERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function toIso(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function todayIso(): string {
+  return toIso(new Date());
+}
+
+function getWeekStart(date: Date): Date {
+  const d = new Date(date);
+  d.setDate(d.getDate() - d.getDay());
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function buildWeekDays(weekStart: Date) {
+  const today = todayIso();
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(weekStart);
+    d.setDate(weekStart.getDate() + i);
+    days.push({
+      date: d,
+      dayLabel: DAY_LABELS[d.getDay()],
+      dayNum: d.getDate(),
+      iso: toIso(d),
+      isToday: toIso(d) === today,
+    });
+  }
+  return days;
+}
+
+function formatDateLabel(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function formatStatResult(stat: any, format: string): string {
+  if (format === 'time' && stat.time_seconds != null) {
+    const min = Math.floor(stat.time_seconds / 60);
+    const sec = stat.time_seconds % 60;
+    return `${min}:${String(sec).padStart(2, '0')}`;
+  }
+  if (format === 'amrap') {
+    const rounds = stat.amrap_rounds ?? 0;
+    const reps = stat.amrap_reps ?? 0;
+    return `${rounds} + ${reps}`;
+  }
+  return '—';
+}
+
+function formatTime(timeStr: string | null): string {
+  if (!timeStr) return '';
+  try {
+    const [h, m] = timeStr.split(':').map(Number);
+    const period = h >= 12 ? 'PM' : 'AM';
+    const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    return `${hour12}:${String(m).padStart(2, '0')} ${period}`;
+  } catch {
+    return timeStr;
+  }
+}
+
+function buildMonthGrid(year: number, month: number) {
+  const today = todayIso();
+  const firstDay = new Date(year, month, 1);
+  const startDow = firstDay.getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const cells: ({ dayNum: number; iso: string; isToday: boolean; inMonth: true } | { inMonth: false })[] = [];
+
+  for (let i = 0; i < startDow; i++) cells.push({ inMonth: false });
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(year, month, d);
+    const iso = toIso(date);
+    cells.push({ dayNum: d, iso, isToday: iso === today, inMonth: true });
+  }
+
+  while (cells.length % 7 !== 0) cells.push({ inMonth: false });
+
+  return cells;
+}
+
 export default function ProgramDetailScreen() {
   const { gymId, programId } = useLocalSearchParams<{ gymId: string; programId: string }>();
   const router = useRouter();
-  const [programName, setProgramName] = useState<string>('Program');
+  const { width: screenWidth } = useWindowDimensions();
+
+  const [pageTab, setPageTab] = useState<PageTab>('schedule');
+  const [program, setProgram] = useState<any>(null);
   const [workouts, setWorkouts] = useState<any[]>([]);
+  const [history, setHistory] = useState<any[]>([]);
+  const [signups, setSignups] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [historyLoading, setHistoryLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState(() => {
-    const d = new Date();
-    return d.toISOString().split('T')[0];
+
+  // Calendar state
+  const [viewMode, setViewMode] = useState<ViewMode>('week');
+  const [selectedDate, setSelectedDate] = useState(todayIso());
+  const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
+  const [monthYear, setMonthYear] = useState(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() };
   });
+
+  const weekDays = useMemo(() => buildWeekDays(weekStart), [weekStart]);
+  const monthGrid = useMemo(
+    () => buildMonthGrid(monthYear.year, monthYear.month),
+    [monthYear.year, monthYear.month],
+  );
+
+  const programName = program?.name || 'Program';
+
+  const selDate = new Date(selectedDate + 'T00:00:00');
+  const headerMonth = MONTH_NAMES[selDate.getMonth()];
+  const headerYear = selDate.getFullYear();
+
+  const weekCellSize = (screenWidth - 40) / 7;
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -35,14 +159,17 @@ export default function ProgramDetailScreen() {
   }, []);
 
   useEffect(() => {
-    // Fetch program name from the gym's program list
     apiFetch(`/gyms/${gymId}/programs`)
       .then((data: any[]) => {
         const p = (data || []).find((pg: any) => pg.id === programId);
-        if (p) setProgramName(p.name);
+        if (p) setProgram(p);
       })
       .catch(console.error);
   }, [gymId, programId]);
+
+  useEffect(() => {
+    loadHistoryData();
+  }, [programId]);
 
   useEffect(() => {
     loadWorkouts();
@@ -52,7 +179,7 @@ export default function ProgramDetailScreen() {
     setLoading(true);
     try {
       const data = await apiFetch(
-        `/programs/${programId}/workouts?start=${selectedDate}&end=${selectedDate}`
+        `/programs/${programId}/workouts?start=${selectedDate}&end=${selectedDate}`,
       );
       setWorkouts(data || []);
     } catch (err) {
@@ -62,20 +189,60 @@ export default function ProgramDetailScreen() {
     }
   }
 
-  function navigateDay(direction: number) {
-    const date = new Date(selectedDate + 'T00:00:00');
-    date.setDate(date.getDate() + direction);
-    setSelectedDate(date.toISOString().split('T')[0]);
+  async function loadHistoryData() {
+    setHistoryLoading(true);
+    try {
+      const [historyData, signupsData] = await Promise.all([
+        apiFetch(`/programs/${programId}/my-history`),
+        apiFetch(`/programs/${programId}/my-signups`),
+      ]);
+      setHistory(historyData || []);
+      setSignups(signupsData || []);
+    } catch {
+      setHistory([]);
+      setSignups([]);
+    } finally {
+      setHistoryLoading(false);
+    }
   }
 
-  function formatDateLabel(dateStr: string): string {
-    const date = new Date(dateStr + 'T00:00:00');
-    return date.toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
+  function refreshHistory() {
+    loadHistoryData();
+  }
+
+  // Navigation helpers
+  function navigateDay(dir: number) {
+    const d = new Date(selectedDate + 'T00:00:00');
+    d.setDate(d.getDate() + dir);
+    setSelectedDate(toIso(d));
+  }
+
+  function navigateWeek(dir: number) {
+    const d = new Date(weekStart);
+    d.setDate(d.getDate() + dir * 7);
+    setWeekStart(d);
+    const selDow = new Date(selectedDate + 'T00:00:00').getDay();
+    const newSel = new Date(d);
+    newSel.setDate(d.getDate() + selDow);
+    setSelectedDate(toIso(newSel));
+  }
+
+  function navigateMonth(dir: number) {
+    setMonthYear((prev) => {
+      let m = prev.month + dir;
+      let y = prev.year;
+      if (m > 11) { m = 0; y++; }
+      if (m < 0) { m = 11; y--; }
+      return { year: y, month: m };
     });
+  }
+
+  function goToToday() {
+    const now = new Date();
+    const iso = toIso(now);
+    setSelectedDate(iso);
+    setWeekStart(getWeekStart(now));
+    setMonthYear({ year: now.getFullYear(), month: now.getMonth() });
   }
 
   return (
@@ -84,54 +251,469 @@ export default function ProgramDetailScreen() {
       <SafeAreaView className="flex-1 bg-base" edges={['top']}>
         {/* Custom header */}
         <View className="px-4 pt-1 pb-2 border-b border-rule bg-base">
-          <BackButton label="Programs" />
-          <Text className="text-xl font-bold text-ink px-1">{programName}</Text>
+          <View className="flex-row items-center justify-between">
+            <BackButton label="Programs" />
+            {pageTab === 'schedule' && (
+              <TouchableOpacity
+                onPress={goToToday}
+                className="bg-accent-soft px-3 py-1.5 rounded-lg"
+              >
+                <Text className="text-xs font-semibold text-accent-ink">Today</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          <View className="flex-row items-center justify-between px-1">
+            <Text className="text-xl font-bold text-ink">{programName}</Text>
+            {pageTab === 'schedule' && (
+              <Text className="text-sm text-ink-muted">
+                {headerMonth} {headerYear}
+              </Text>
+            )}
+          </View>
         </View>
 
-        <ScrollView className="flex-1">
-          {/* Date navigation */}
-          <View className="flex-row items-center justify-between px-5 py-3 bg-card border-b border-rule">
-          <TouchableOpacity
-            onPress={() => navigateDay(-1)}
-            className="w-9 h-9 items-center justify-center rounded-full bg-soft"
-          >
-            <Ionicons name="chevron-back" size={18} color={colors.ink} />
-          </TouchableOpacity>
-          <Text className="text-sm font-semibold text-ink">
-            {formatDateLabel(selectedDate)}
-          </Text>
-          <TouchableOpacity
-            onPress={() => navigateDay(1)}
-            className="w-9 h-9 items-center justify-center rounded-full bg-soft"
-          >
-            <Ionicons name="chevron-forward" size={18} color={colors.ink} />
-          </TouchableOpacity>
+        {/* Program info */}
+        {program && (program.description || program.start_date || program.end_date) && (
+          <View className="px-5 pt-3 pb-2">
+            {program.description ? (
+              <Text className="text-sm text-ink-soft leading-5">{program.description}</Text>
+            ) : null}
+            <View className="flex-row flex-wrap gap-3 mt-2">
+              {(program.start_date || program.end_date) && (
+                <View className="flex-row items-center">
+                  <Ionicons name="calendar-outline" size={14} color={colors.inkMuted} />
+                  <Text className="text-xs text-ink-muted ml-1">
+                    {program.start_date && program.end_date
+                      ? `${formatDateLabel(program.start_date)} – ${formatDateLabel(program.end_date)}`
+                      : program.start_date
+                        ? `Starts ${formatDateLabel(program.start_date)}`
+                        : `Ends ${formatDateLabel(program.end_date)}`}
+                  </Text>
+                </View>
+              )}
+              {program.enrollment_count != null && (
+                <View className="flex-row items-center">
+                  <Ionicons name="people-outline" size={14} color={colors.inkMuted} />
+                  <Text className="text-xs text-ink-muted ml-1">
+                    {program.enrollment_count} enrolled
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
+
+        {/* Page tab toggle: Schedule / History */}
+        <View className="flex-row mx-5 mt-3 mb-3 bg-soft rounded-xl p-1">
+          {(['schedule', 'history'] as PageTab[]).map((tab) => (
+            <TouchableOpacity
+              key={tab}
+              onPress={() => setPageTab(tab)}
+              className={`flex-1 py-2 rounded-lg items-center ${
+                pageTab === tab ? 'bg-card' : ''
+              }`}
+              style={pageTab === tab ? {
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.08,
+                shadowRadius: 2,
+                elevation: 2,
+              } : undefined}
+            >
+              <Text
+                className={`text-xs font-semibold capitalize ${
+                  pageTab === tab ? 'text-ink' : 'text-ink-muted'
+                }`}
+              >
+                {tab}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
-        <View className="px-4 pt-4 pb-8">
-          {loading ? (
-            <View className="items-center mt-16">
-              <ActivityIndicator size="small" color={colors.accent} />
-              <Text className="text-ink-muted text-sm mt-2">Loading workouts...</Text>
+        {/* ========== SCHEDULE TAB ========== */}
+        {pageTab === 'schedule' && (
+          <>
+            {/* View mode toggle */}
+            <View className="flex-row mx-5 mb-3 bg-soft rounded-xl p-1">
+              {(['day', 'week', 'month'] as ViewMode[]).map((mode) => (
+                <TouchableOpacity
+                  key={mode}
+                  onPress={() => {
+                    setViewMode(mode);
+                    if (mode === 'week') {
+                      setWeekStart(getWeekStart(new Date(selectedDate + 'T00:00:00')));
+                    } else if (mode === 'month') {
+                      const d = new Date(selectedDate + 'T00:00:00');
+                      setMonthYear({ year: d.getFullYear(), month: d.getMonth() });
+                    }
+                  }}
+                  className={`flex-1 py-2 rounded-lg items-center ${
+                    viewMode === mode ? 'bg-card' : ''
+                  }`}
+                  style={viewMode === mode ? {
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 1 },
+                    shadowOpacity: 0.08,
+                    shadowRadius: 2,
+                    elevation: 2,
+                  } : undefined}
+                >
+                  <Text
+                    className={`text-xs font-semibold capitalize ${
+                      viewMode === mode ? 'text-ink' : 'text-ink-muted'
+                    }`}
+                  >
+                    {mode}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
-          ) : workouts.length === 0 ? (
-            <View className="items-center mt-16">
-              <Ionicons name="barbell-outline" size={40} color={colors.inkMuted} />
-              <Text className="text-ink-muted text-sm mt-3">No workouts for this day</Text>
-            </View>
-          ) : (
-            workouts.map((workout) => (
-              <WorkoutCard
-                key={workout.id}
-                workout={workout}
-                gymId={gymId!}
-                userId={userId}
-                router={router}
-              />
-            ))
-          )}
-        </View>
-        </ScrollView>
+
+            {/* Day view date selector */}
+            {viewMode === 'day' && (
+              <View className="flex-row items-center justify-between px-5 py-3 bg-card border-b border-rule">
+                <TouchableOpacity
+                  onPress={() => navigateDay(-1)}
+                  className="w-9 h-9 items-center justify-center rounded-full bg-soft"
+                >
+                  <Ionicons name="chevron-back" size={16} color={colors.ink} />
+                </TouchableOpacity>
+                <View className="items-center">
+                  <Text className="text-base font-bold text-ink">
+                    {selDate.toLocaleDateString('en-US', { weekday: 'long' })}
+                  </Text>
+                  <Text className="text-xs text-ink-muted mt-0.5">
+                    {MONTH_SHORT[selDate.getMonth()]} {selDate.getDate()}, {selDate.getFullYear()}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => navigateDay(1)}
+                  className="w-9 h-9 items-center justify-center rounded-full bg-soft"
+                >
+                  <Ionicons name="chevron-forward" size={16} color={colors.ink} />
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Week view date strip */}
+            {viewMode === 'week' && (
+              <View className="bg-card border-b border-rule">
+                <View className="flex-row items-center justify-between px-3 pt-2 pb-1">
+                  <TouchableOpacity
+                    onPress={() => navigateWeek(-1)}
+                    className="w-7 h-7 items-center justify-center rounded-full"
+                  >
+                    <Ionicons name="chevron-back" size={16} color={colors.inkMuted} />
+                  </TouchableOpacity>
+                  <Text className="text-xs font-semibold text-ink-muted">
+                    {MONTH_SHORT[weekDays[0].date.getMonth()]} {weekDays[0].dayNum} – {MONTH_SHORT[weekDays[6].date.getMonth()]} {weekDays[6].dayNum}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => navigateWeek(1)}
+                    className="w-7 h-7 items-center justify-center rounded-full"
+                  >
+                    <Ionicons name="chevron-forward" size={16} color={colors.inkMuted} />
+                  </TouchableOpacity>
+                </View>
+                <View className="flex-row px-5 pb-3 pt-1">
+                  {weekDays.map((day) => {
+                    const isSelected = day.iso === selectedDate;
+                    return (
+                      <TouchableOpacity
+                        key={day.iso}
+                        onPress={() => setSelectedDate(day.iso)}
+                        style={{ width: weekCellSize }}
+                        className="items-center py-2"
+                      >
+                        <Text
+                          className={`text-[11px] font-semibold uppercase ${
+                            isSelected ? 'text-accent' : 'text-ink-muted'
+                          }`}
+                        >
+                          {day.dayLabel}
+                        </Text>
+                        <View
+                          className={`items-center justify-center mt-1 rounded-full ${
+                            isSelected ? 'bg-accent' : ''
+                          }`}
+                          style={{ width: 36, height: 36 }}
+                        >
+                          <Text
+                            className={`text-base font-bold ${
+                              isSelected ? 'text-white' : 'text-ink'
+                            }`}
+                          >
+                            {day.dayNum}
+                          </Text>
+                        </View>
+                        {day.isToday && (
+                          <View className="bg-accent rounded-full mt-1" style={{ width: 5, height: 5 }} />
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+
+            {/* Month view calendar */}
+            {viewMode === 'month' && (
+              <View className="bg-card border-b border-rule px-5 pb-3">
+                <View className="flex-row items-center justify-between py-2">
+                  <TouchableOpacity
+                    onPress={() => navigateMonth(-1)}
+                    className="w-8 h-8 items-center justify-center rounded-full"
+                  >
+                    <Ionicons name="chevron-back" size={16} color={colors.inkMuted} />
+                  </TouchableOpacity>
+                  <Text className="text-sm font-bold text-ink">
+                    {MONTH_NAMES[monthYear.month]} {monthYear.year}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => navigateMonth(1)}
+                    className="w-8 h-8 items-center justify-center rounded-full"
+                  >
+                    <Ionicons name="chevron-forward" size={16} color={colors.inkMuted} />
+                  </TouchableOpacity>
+                </View>
+
+                <View className="flex-row mb-1">
+                  {DAY_HEADERS.map((h, i) => (
+                    <View key={i} style={{ width: (screenWidth - 40) / 7 }} className="items-center">
+                      <Text className="text-[10px] font-semibold text-ink-muted uppercase">{h}</Text>
+                    </View>
+                  ))}
+                </View>
+
+                <View className="flex-row flex-wrap">
+                  {monthGrid.map((cell, i) => {
+                    if (!cell.inMonth) {
+                      return <View key={`blank-${i}`} style={{ width: (screenWidth - 40) / 7, height: 40 }} />;
+                    }
+                    const isSelected = cell.iso === selectedDate;
+                    return (
+                      <TouchableOpacity
+                        key={cell.iso}
+                        onPress={() => setSelectedDate(cell.iso)}
+                        style={{ width: (screenWidth - 40) / 7, height: 40 }}
+                        className="items-center justify-center"
+                      >
+                        <View
+                          className={`items-center justify-center rounded-full ${
+                            isSelected ? 'bg-accent' : ''
+                          }`}
+                          style={{ width: 32, height: 32 }}
+                        >
+                          <Text
+                            className={`text-sm font-semibold ${
+                              isSelected ? 'text-white' : 'text-ink'
+                            }`}
+                          >
+                            {cell.dayNum}
+                          </Text>
+                        </View>
+                        {cell.isToday && (
+                          <View className="bg-accent rounded-full absolute bottom-0.5" style={{ width: 5, height: 5 }} />
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+
+            {/* Workouts list */}
+            <ScrollView
+              className="flex-1"
+              contentContainerStyle={{ paddingBottom: 40 }}
+              showsVerticalScrollIndicator={false}
+            >
+              <View className="px-4 pt-4 pb-8">
+                {loading ? (
+                  <View className="items-center mt-16">
+                    <ActivityIndicator size="small" color={colors.accent} />
+                    <Text className="text-ink-muted text-sm mt-2">Loading workouts...</Text>
+                  </View>
+                ) : workouts.length === 0 ? (
+                  <View className="items-center mt-16">
+                    <Ionicons name="barbell-outline" size={40} color={colors.inkMuted} />
+                    <Text className="text-ink-muted text-sm mt-3">No workouts for this day</Text>
+                  </View>
+                ) : (
+                  workouts.map((workout) => (
+                    <WorkoutCard
+                      key={workout.id}
+                      workout={workout}
+                      gymId={gymId!}
+                      userId={userId}
+                      router={router}
+                      onStatChange={refreshHistory}
+                    />
+                  ))
+                )}
+              </View>
+            </ScrollView>
+          </>
+        )}
+
+        {/* ========== HISTORY TAB ========== */}
+        {pageTab === 'history' && (
+          <ScrollView
+            className="flex-1"
+            contentContainerStyle={{ paddingBottom: 40 }}
+            showsVerticalScrollIndicator={false}
+          >
+            {historyLoading ? (
+              <View className="items-center py-16">
+                <ActivityIndicator size="large" color={colors.accent} />
+              </View>
+            ) : (
+              <>
+                {/* Class signups section */}
+                <View className="px-5 pt-4">
+                  <Text className="text-xs font-semibold text-ink-muted uppercase tracking-wider mb-3 ml-1">
+                    Class Attendance
+                  </Text>
+                  {signups.length === 0 ? (
+                    <View className="bg-card border border-rule rounded-xl p-5 items-center mb-5">
+                      <Ionicons name="calendar-outline" size={28} color={colors.inkFaint} />
+                      <Text className="text-sm text-ink-muted mt-2 text-center">
+                        No class sign-ups yet
+                      </Text>
+                    </View>
+                  ) : (
+                    <View className="mb-5">
+                      {signups.map((signup: any) => {
+                        const occ = signup.occurrence;
+                        if (!occ) return null;
+                        return (
+                          <View
+                            key={signup.id}
+                            className={`bg-card border border-rule rounded-xl p-4 mb-2 ${
+                              occ.is_cancelled ? 'opacity-50' : ''
+                            }`}
+                          >
+                            <View className="flex-row items-start justify-between">
+                              <View className="flex-1 mr-3">
+                                <Text className="text-base font-bold text-ink" numberOfLines={1}>
+                                  {signup.class_name}
+                                  {occ.is_cancelled ? ' (Cancelled)' : ''}
+                                </Text>
+                                <Text className="text-xs text-ink-muted mt-0.5">
+                                  {formatDateLabel(occ.date)}
+                                  {occ.start_time ? ` · ${formatTime(occ.start_time)}` : ''}
+                                </Text>
+                              </View>
+                              <View className="items-end">
+                                {signup.checked_in ? (
+                                  <View className="bg-accent-soft px-2.5 py-1 rounded-full flex-row items-center">
+                                    <Ionicons name="checkmark-circle" size={12} color={colors.accent} />
+                                    <Text className="text-[10px] font-bold text-accent-ink ml-1 uppercase">
+                                      Checked In
+                                    </Text>
+                                  </View>
+                                ) : !occ.is_cancelled ? (
+                                  <View className="bg-soft px-2.5 py-1 rounded-full">
+                                    <Text className="text-[10px] font-bold text-ink-muted uppercase">
+                                      Signed Up
+                                    </Text>
+                                  </View>
+                                ) : null}
+                              </View>
+                            </View>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  )}
+                </View>
+
+                {/* Workout results section */}
+                <View className="px-5">
+                  <Text className="text-xs font-semibold text-ink-muted uppercase tracking-wider mb-3 ml-1">
+                    Workout Results
+                  </Text>
+                  {history.length === 0 ? (
+                    <View className="bg-card border border-rule rounded-xl p-5 items-center">
+                      <Ionicons name="barbell-outline" size={28} color={colors.inkFaint} />
+                      <Text className="text-sm text-ink-muted mt-2 text-center">
+                        No completed workouts yet
+                      </Text>
+                    </View>
+                  ) : (
+                    history.map((item) => {
+                      const isTime = item.format === 'time';
+                      return (
+                        <TouchableOpacity
+                          key={item.id}
+                          className="bg-card border border-rule rounded-xl p-4 mb-2"
+                          activeOpacity={0.7}
+                          onPress={() =>
+                            router.push(
+                              `/(app)/workout/${item.id}/leaderboard?gymId=${gymId}` as any
+                            )
+                          }
+                        >
+                          <View className="flex-row items-start justify-between">
+                            <View className="flex-1 mr-3">
+                              <View className="flex-row items-center mb-1">
+                                <View
+                                  className={`px-2 py-0.5 rounded mr-2 ${
+                                    isTime ? 'bg-soft' : 'bg-accent-soft'
+                                  }`}
+                                >
+                                  <Text
+                                    className={`text-[10px] font-bold tracking-wide ${
+                                      isTime ? 'text-ink-soft' : 'text-accent-ink'
+                                    }`}
+                                  >
+                                    {isTime ? 'TIME' : 'AMRAP'}
+                                  </Text>
+                                </View>
+                                {item.my_stat?.rx_scaled && (
+                                  <View className={`px-2 py-0.5 rounded ${
+                                    item.my_stat.rx_scaled === 'rx' ? 'bg-accent-soft' : 'bg-soft'
+                                  }`}>
+                                    <Text className={`text-[10px] font-bold uppercase ${
+                                      item.my_stat.rx_scaled === 'rx' ? 'text-accent-ink' : 'text-ink-soft'
+                                    }`}>
+                                      {item.my_stat.rx_scaled}
+                                    </Text>
+                                  </View>
+                                )}
+                              </View>
+                              <Text className="text-base font-bold text-ink" numberOfLines={1}>
+                                {item.title}
+                              </Text>
+                              <Text className="text-xs text-ink-muted mt-0.5">
+                                {formatDateLabel(item.date)}
+                              </Text>
+                            </View>
+                            <View className="items-end">
+                              <Text className="text-lg font-bold text-ink">
+                                {formatStatResult(item.my_stat, item.format)}
+                              </Text>
+                              <Text className="text-[10px] text-ink-muted mt-0.5">
+                                {isTime ? 'time' : 'rounds + reps'}
+                              </Text>
+                            </View>
+                          </View>
+                          {/* Leaderboard hint */}
+                          <View className="flex-row items-center justify-end mt-2">
+                            <Ionicons name="trophy-outline" size={12} color={colors.inkMuted} />
+                            <Text className="text-[11px] text-ink-muted ml-1 mr-0.5">Leaderboard</Text>
+                            <Ionicons name="chevron-forward" size={12} color={colors.inkMuted} />
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })
+                  )}
+                </View>
+              </>
+            )}
+          </ScrollView>
+        )}
       </SafeAreaView>
     </>
   );
@@ -142,11 +724,13 @@ function WorkoutCard({
   gymId,
   userId,
   router,
+  onStatChange,
 }: {
   workout: any;
   gymId: string;
   userId: string | null;
   router: any;
+  onStatChange?: () => void;
 }) {
   const [timeMinutes, setTimeMinutes] = useState('');
   const [timeSeconds, setTimeSeconds] = useState('');
@@ -207,6 +791,7 @@ function WorkoutCard({
       });
       setExistingStat(body);
       Alert.alert('Saved', 'Stats recorded');
+      onStatChange?.();
     } catch (err: any) {
       Alert.alert('Error', err.message);
     } finally {
@@ -232,6 +817,7 @@ function WorkoutCard({
             setNotes('');
             setRxScaled('rx');
             setExistingStat(null);
+            onStatChange?.();
           } catch (err: any) {
             Alert.alert('Error', err.message);
           }

@@ -7,6 +7,7 @@ import { BackButton } from "@/components/BackButton";
 
 export default function NewGymPage() {
   const [name, setName] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -18,7 +19,10 @@ export default function NewGymPage() {
     try {
       const gym = await apiFetch("/gyms", {
         method: "POST",
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({
+          name,
+          contact_email: contactEmail.trim() || null,
+        }),
       });
       router.push(`/gym/${gym.id}`);
     } catch (err: any) {
@@ -53,6 +57,17 @@ export default function NewGymPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label htmlFor="contact-email" className="text-[11px] tracking-[0.12em] uppercase text-[var(--color-ink-muted)] font-medium">Contact Email <span className="normal-case tracking-normal text-[var(--color-ink-faint)]">(optional)</span></label>
+            <input
+              id="contact-email"
+              type="email"
+              className="h-11 rounded-md border border-[var(--color-rule-strong)] px-3 text-sm"
+              value={contactEmail}
+              onChange={(e) => setContactEmail(e.target.value)}
+              placeholder="gym@example.com"
             />
           </div>
           <button

@@ -29,8 +29,11 @@ export default function ClassesScreen() {
 
   async function loadOccurrences() {
     try {
-      const today = new Date().toISOString().split('T')[0];
-      const end = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
+      const now = new Date();
+      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const endDate = new Date(now);
+      endDate.setDate(endDate.getDate() + 7);
+      const end = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
       const data = await apiFetch(`/gyms/${gymId}/occurrences?start=${today}&end=${end}`);
       setOccurrences((data || []).filter((o: any) => o.class));
     } catch (err) {

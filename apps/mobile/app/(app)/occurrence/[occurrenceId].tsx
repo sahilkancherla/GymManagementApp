@@ -8,11 +8,13 @@ import {
   Alert,
   RefreshControl,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { apiFetch } from '../../../lib/api';
 import { supabase } from '../../../lib/supabase';
 import { colors } from '../../../lib/theme';
+import BackButton from '../../../components/BackButton';
 
 type Profile = { id: string; first_name: string | null; last_name: string | null };
 type SignupEntry = {
@@ -162,8 +164,8 @@ export default function OccurrenceDetailScreen() {
         start.setDate(start.getDate() - 30);
         const end = new Date(today);
         end.setDate(end.getDate() + 60);
-        const startStr = start.toISOString().slice(0, 10);
-        const endStr = end.toISOString().slice(0, 10);
+        const startStr = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
+        const endStr = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`;
 
         const occData = await apiFetch(
           `/gyms/${gymId}/occurrences?start=${startStr}&end=${endStr}`
@@ -287,15 +289,12 @@ export default function OccurrenceDetailScreen() {
 
   return (
     <>
-      <Stack.Screen
-        options={{
-          title: occurrence.class?.name || 'Class',
-          headerShown: true,
-          headerStyle: { backgroundColor: colors.bgBase },
-          headerTintColor: colors.accent,
-          headerTitleStyle: { color: colors.ink, fontWeight: '600', fontSize: 17 },
-        }}
-      />
+      <Stack.Screen options={{ headerShown: false }} />
+      <SafeAreaView className="flex-1 bg-base" edges={['top']}>
+        <View className="px-4 pt-1 pb-2 border-b border-rule bg-base">
+          <BackButton label="Back" />
+          <Text className="text-xl font-bold text-ink px-1">{occurrence.class?.name || 'Class'}</Text>
+        </View>
       <ScrollView
         className="flex-1 bg-base"
         contentContainerStyle={{ paddingBottom: 40 }}
@@ -305,8 +304,7 @@ export default function OccurrenceDetailScreen() {
       >
         {/* Class info header */}
         <View className="bg-card border-b border-rule px-5 py-5">
-          <Text className="text-xl font-bold text-ink">{occurrence.class?.name}</Text>
-          <Text className="text-sm text-ink-muted mt-1">{formatDateLabel(occurrence.date)}</Text>
+          <Text className="text-sm text-ink-muted">{formatDateLabel(occurrence.date)}</Text>
 
           <View className="flex-row items-center mt-3 flex-wrap">
             <View className="flex-row items-center mr-4">
@@ -503,6 +501,7 @@ export default function OccurrenceDetailScreen() {
           )}
         </View>
       </ScrollView>
+      </SafeAreaView>
     </>
   );
 }
